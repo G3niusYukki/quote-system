@@ -32,16 +32,16 @@ export function parseExcel(buffer: Buffer): ParseResult {
     if (!ws) continue;
 
     try {
-      if (sheetName === "Sheet1") {
-        parseUSSheet(ws, result);
-      } else if (sheetName === "Sheet2") {
-        parseUSSensitiveSheet(ws, result);
-      } else if (sheetName === "Sheet3") {
-        parseCanadaSeaSheet(ws, result);
-      } else if (sheetName === "Sheet4") {
-        parseAustraliaAirSheet(ws, result);
-      } else if (sheetName === "Sheet5") {
-        parseCanadaAirSheet(ws, result);
+      if (sheetName === "美国海运普货" || sheetName === "美国海运快船") {
+        parseUSSheet(ws, result, sheetName);
+      } else if (sheetName === "美国海运敏感") {
+        parseUSSensitiveSheet(ws, result, sheetName);
+      } else if (sheetName === "加拿大海运普敏" || sheetName === "加拿大海运") {
+        parseCanadaSeaSheet(ws, result, sheetName);
+      } else if (sheetName === "澳大利亚空运") {
+        parseAustraliaAirSheet(ws, result, sheetName);
+      } else if (sheetName === "加拿大空运") {
+        parseCanadaAirSheet(ws, result, sheetName);
       } else {
         result.unparsedWarnings.push(`未知的Sheet: ${sheetName}`);
       }
@@ -63,7 +63,7 @@ function getCell(ws: XLSX.WorkSheet, addr: string): string {
 // Sheet1: 美国海运快船/慢船 · 纯普货
 // 列: A=国家, B=区域, C=邮编, D=12-50KG价, E=51+KG价, F=时效(快船), G=时效(慢船)
 // ============================================================
-function parseUSSheet(ws: XLSX.WorkSheet, result: ParseResult) {
+function parseUSSheet(ws: XLSX.WorkSheet, result: ParseResult, sheetName: string) {
   const timeEstimateFast = getCell(ws, "F2");
   const timeEstimateSlow = getCell(ws, "F5");
 
@@ -83,7 +83,7 @@ function parseUSSheet(ws: XLSX.WorkSheet, result: ParseResult) {
     const timeEst = z.isFast ? timeEstimateFast : timeEstimateSlow;
 
     result.quotes.push({
-      sheet_name: "Sheet1",
+      sheet_name: sheetName,
       country: "美国",
       transport_type: "海运",
       cargo_type: "纯普货",
@@ -99,7 +99,7 @@ function parseUSSheet(ws: XLSX.WorkSheet, result: ParseResult) {
     });
 
     result.quotes.push({
-      sheet_name: "Sheet1",
+      sheet_name: sheetName,
       country: "美国",
       transport_type: "海运",
       cargo_type: "纯普货",
@@ -115,14 +115,14 @@ function parseUSSheet(ws: XLSX.WorkSheet, result: ParseResult) {
     });
   }
 
-  extractUSCommonClauses("Sheet1", result);
+  extractUSCommonClauses(sheetName, result);
 }
 
 // ============================================================
 // Sheet2: 美国海运快船 · 敏感货
 // 列: A=国家, B=区域, C=邮编, D=12-50KG价, E=51+KG价, G=时效
 // ============================================================
-function parseUSSensitiveSheet(ws: XLSX.WorkSheet, result: ParseResult) {
+function parseUSSensitiveSheet(ws: XLSX.WorkSheet, result: ParseResult, sheetName: string) {
   const timeEstimate = getCell(ws, "G2");
 
   const zones = [
@@ -136,7 +136,7 @@ function parseUSSensitiveSheet(ws: XLSX.WorkSheet, result: ParseResult) {
     const price51 = parseFloat(getCell(ws, `E${z.row}`)) || 0;
 
     result.quotes.push({
-      sheet_name: "Sheet2",
+      sheet_name: sheetName,
       country: "美国",
       transport_type: "海运",
       cargo_type: "敏感",
@@ -152,7 +152,7 @@ function parseUSSensitiveSheet(ws: XLSX.WorkSheet, result: ParseResult) {
     });
 
     result.quotes.push({
-      sheet_name: "Sheet2",
+      sheet_name: sheetName,
       country: "美国",
       transport_type: "海运",
       cargo_type: "敏感",
@@ -168,15 +168,15 @@ function parseUSSensitiveSheet(ws: XLSX.WorkSheet, result: ParseResult) {
     });
   }
 
-  extractUSCommonClauses("Sheet2", result);
-  parseUSSensitiveClauses("Sheet2", result);
+  extractUSCommonClauses(sheetName, result);
+  parseUSSensitiveClauses(sheetName, result);
 }
 
 // ============================================================
 // Sheet3: 加拿大海运 · 普货/敏感
 // 列: A=国家, B=?, C=10-20KG, D=21-30KG, E=30-70KG, F=71+KG, G=时效
 // ============================================================
-function parseCanadaSeaSheet(ws: XLSX.WorkSheet, result: ParseResult) {
+function parseCanadaSeaSheet(ws: XLSX.WorkSheet, result: ParseResult, sheetName: string) {
   const timeEstimate = getCell(ws, "G2");
 
   const rows = [
@@ -195,7 +195,7 @@ function parseCanadaSeaSheet(ws: XLSX.WorkSheet, result: ParseResult) {
     for (const w of weightBrackets) {
       const price = parseFloat(getCell(ws, `${w.col}${r.row}`)) || 0;
       result.quotes.push({
-        sheet_name: "Sheet3",
+        sheet_name: sheetName,
         country: "加拿大",
         transport_type: "海运",
         cargo_type: r.cargoType as "普货" | "敏感",
@@ -214,7 +214,7 @@ function parseCanadaSeaSheet(ws: XLSX.WorkSheet, result: ParseResult) {
 
   // 计费规则
   result.billingRules.push({
-    sheet_name: "Sheet3",
+    sheet_name: sheetName,
     rule_type: "体积重",
     rule_key: "计算公式",
     rule_value: "长×宽×高/6000",
@@ -223,7 +223,7 @@ function parseCanadaSeaSheet(ws: XLSX.WorkSheet, result: ParseResult) {
 
   // 偏远
   result.surcharges.push({
-    sheet_name: "Sheet3",
+    sheet_name: sheetName,
     category: "偏远",
     item_type: null,
     charge_type: "per_kg",
@@ -235,7 +235,7 @@ function parseCanadaSeaSheet(ws: XLSX.WorkSheet, result: ParseResult) {
 
   // 超尺寸
   result.surcharges.push({
-    sheet_name: "Sheet3",
+    sheet_name: sheetName,
     category: "超尺寸",
     item_type: null,
     charge_type: "per_item",
@@ -245,7 +245,7 @@ function parseCanadaSeaSheet(ws: XLSX.WorkSheet, result: ParseResult) {
     raw_text: "最长边超119CM收取320元/件",
   });
   result.surcharges.push({
-    sheet_name: "Sheet3",
+    sheet_name: sheetName,
     category: "超尺寸",
     item_type: null,
     charge_type: "per_item",
@@ -255,7 +255,7 @@ function parseCanadaSeaSheet(ws: XLSX.WorkSheet, result: ParseResult) {
     raw_text: "第二长边超70CM收取320元/件",
   });
   result.surcharges.push({
-    sheet_name: "Sheet3",
+    sheet_name: sheetName,
     category: "超尺寸",
     item_type: null,
     charge_type: "per_item",
@@ -265,7 +265,7 @@ function parseCanadaSeaSheet(ws: XLSX.WorkSheet, result: ParseResult) {
     raw_text: "周长大于260CM收取320元/件",
   });
   result.surcharges.push({
-    sheet_name: "Sheet3",
+    sheet_name: sheetName,
     category: "超重",
     item_type: null,
     charge_type: "per_item",
@@ -277,7 +277,7 @@ function parseCanadaSeaSheet(ws: XLSX.WorkSheet, result: ParseResult) {
 
   // 赔偿
   result.compensationRules.push({
-    sheet_name: "Sheet3",
+    sheet_name: sheetName,
     scenario: "已提取未签收",
     standard: "25元/KG赔偿",
     rate_per_kg: 25,
@@ -285,7 +285,7 @@ function parseCanadaSeaSheet(ws: XLSX.WorkSheet, result: ParseResult) {
     notes: "不退运费",
   });
   result.compensationRules.push({
-    sheet_name: "Sheet3",
+    sheet_name: sheetName,
     scenario: "无法提取或扣关",
     standard: "25元/KG+退回运费",
     rate_per_kg: 25,
@@ -298,14 +298,14 @@ function parseCanadaSeaSheet(ws: XLSX.WorkSheet, result: ParseResult) {
 // Sheet4: 澳大利亚空运 · 普敏/特货
 // 列: A=国家, B=首重0.5KG, C=续重0.5KG, D/E=?, G=时效
 // ============================================================
-function parseAustraliaAirSheet(ws: XLSX.WorkSheet, result: ParseResult) {
+function parseAustraliaAirSheet(ws: XLSX.WorkSheet, result: ParseResult, sheetName: string) {
   const timeEstimate = getCell(ws, "G3");
 
   // 普敏
   const puminFirst = parseFloat(getCell(ws, "B2")) || 84;
   const puminCont = parseFloat(getCell(ws, "C2")) || 22;
   result.quotes.push({
-    sheet_name: "Sheet4",
+    sheet_name: sheetName,
     country: "澳大利亚",
     transport_type: "空运",
     cargo_type: "普敏",
@@ -320,7 +320,7 @@ function parseAustraliaAirSheet(ws: XLSX.WorkSheet, result: ParseResult) {
     raw_text: "",
   });
   result.quotes.push({
-    sheet_name: "Sheet4",
+    sheet_name: sheetName,
     country: "澳大利亚",
     transport_type: "空运",
     cargo_type: "普敏",
@@ -339,7 +339,7 @@ function parseAustraliaAirSheet(ws: XLSX.WorkSheet, result: ParseResult) {
   const tehuoFirst = parseFloat(getCell(ws, "B3")) || 95;
   const tehuoCont = parseFloat(getCell(ws, "C3")) || 25;
   result.quotes.push({
-    sheet_name: "Sheet4",
+    sheet_name: sheetName,
     country: "澳大利亚",
     transport_type: "空运",
     cargo_type: "特货",
@@ -354,7 +354,7 @@ function parseAustraliaAirSheet(ws: XLSX.WorkSheet, result: ParseResult) {
     raw_text: "",
   });
   result.quotes.push({
-    sheet_name: "Sheet4",
+    sheet_name: sheetName,
     country: "澳大利亚",
     transport_type: "空运",
     cargo_type: "特货",
@@ -371,19 +371,19 @@ function parseAustraliaAirSheet(ws: XLSX.WorkSheet, result: ParseResult) {
 
   // 普敏限制
   result.restrictions.push({
-    sheet_name: "Sheet4",
+    sheet_name: sheetName,
     type: "品类限制",
     content: "拒收肉蛋奶类食品、含磁、带电、液体、膏体、粉末、易燃易爆类",
   });
   result.restrictions.push({
-    sheet_name: "Sheet4",
+    sheet_name: sheetName,
     type: "尺寸限制",
     content: "任何一边尺寸不得超过1.05米；长度+最大横周合计不得超过3.0米；单件限重20KG",
   });
 
   // 超尺寸附加费
   result.surcharges.push({
-    sheet_name: "Sheet4",
+    sheet_name: sheetName,
     category: "超尺寸",
     item_type: null,
     charge_type: "per_item",
@@ -395,7 +395,7 @@ function parseAustraliaAirSheet(ws: XLSX.WorkSheet, result: ParseResult) {
 
   // 赔偿
   result.compensationRules.push({
-    sheet_name: "Sheet4",
+    sheet_name: sheetName,
     scenario: "未上网遗失",
     standard: "40元/KG+退运费",
     rate_per_kg: 40,
@@ -403,7 +403,7 @@ function parseAustraliaAirSheet(ws: XLSX.WorkSheet, result: ParseResult) {
     notes: "出库后50天未上网提取",
   });
   result.compensationRules.push({
-    sheet_name: "Sheet4",
+    sheet_name: sheetName,
     scenario: "已上网遗失",
     standard: "40元/KG",
     rate_per_kg: 40,
@@ -416,13 +416,13 @@ function parseAustraliaAirSheet(ws: XLSX.WorkSheet, result: ParseResult) {
 // Sheet5: 加拿大空运 · 普敏/特货
 // 列: A=国家, B=首重0.5KG, C=续重0.5KG, D/E=?, F=时效
 // ============================================================
-function parseCanadaAirSheet(ws: XLSX.WorkSheet, result: ParseResult) {
+function parseCanadaAirSheet(ws: XLSX.WorkSheet, result: ParseResult, sheetName: string) {
   const timeEstimate = getCell(ws, "F3");
 
   const canPuminFirst = parseFloat(getCell(ws, "B2")) || 126;
   const canPuminCont = parseFloat(getCell(ws, "C2")) || 33.75;
   result.quotes.push({
-    sheet_name: "Sheet5",
+    sheet_name: sheetName,
     country: "加拿大",
     transport_type: "空运",
     cargo_type: "普敏",
@@ -437,7 +437,7 @@ function parseCanadaAirSheet(ws: XLSX.WorkSheet, result: ParseResult) {
     raw_text: "",
   });
   result.quotes.push({
-    sheet_name: "Sheet5",
+    sheet_name: sheetName,
     country: "加拿大",
     transport_type: "空运",
     cargo_type: "普敏",
@@ -455,7 +455,7 @@ function parseCanadaAirSheet(ws: XLSX.WorkSheet, result: ParseResult) {
   const canTehuoFirst = parseFloat(getCell(ws, "B3")) || 75;
   const canTehuoCont = parseFloat(getCell(ws, "C3")) || 33.75;
   result.quotes.push({
-    sheet_name: "Sheet5",
+    sheet_name: sheetName,
     country: "加拿大",
     transport_type: "空运",
     cargo_type: "特货",
@@ -470,7 +470,7 @@ function parseCanadaAirSheet(ws: XLSX.WorkSheet, result: ParseResult) {
     raw_text: "",
   });
   result.quotes.push({
-    sheet_name: "Sheet5",
+    sheet_name: sheetName,
     country: "加拿大",
     transport_type: "空运",
     cargo_type: "特货",
@@ -486,12 +486,12 @@ function parseCanadaAirSheet(ws: XLSX.WorkSheet, result: ParseResult) {
   });
 
   result.restrictions.push({
-    sheet_name: "Sheet5",
+    sheet_name: sheetName,
     type: "品类限制",
     content: "普敏：拒收肉蛋奶类食品、含磁、带电、液体、膏体、粉末、易燃易爆类；特货可运输内置电/磁、食品、保健品、药品、牌子（混装）",
   });
   result.restrictions.push({
-    sheet_name: "Sheet5",
+    sheet_name: sheetName,
     type: "尺寸限制",
     content: "普敏:任何一边尺寸不得超过1.5米，长度和长度以外的最大横周合计不得超过3.0米；单件限重30KG",
   });
