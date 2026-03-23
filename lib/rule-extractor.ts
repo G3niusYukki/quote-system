@@ -7,22 +7,18 @@ import type { RuleRecord } from "@/types";
 const CONFIG_PATH = path.join(process.cwd(), "data", "config.json");
 
 function getApiKey(): string | null {
-  const envKey = process.env.DASHSCOPE_API_KEY;
-  if (envKey) return envKey;
+  // 先从 config.json 读（用户通过设置页写入的）
   try {
     if (fs.existsSync(CONFIG_PATH)) {
       const raw = fs.readFileSync(CONFIG_PATH, "utf-8");
       const config = JSON.parse(raw);
-      const key = config.dashscopeApiKey || null;
-      console.log("[rule-extractor] config check:", CONFIG_PATH, "hasKey:", !!key);
-      return key;
-    } else {
-      console.log("[rule-extractor] config not found:", CONFIG_PATH, "cwd:", process.cwd());
+      if (config.dashscopeApiKey) {
+        return config.dashscopeApiKey;
+      }
     }
-  } catch (e) {
-    console.log("[rule-extractor] config read error:", e);
-  }
-  return null;
+  } catch {}
+  // config.json 没有再尝试环境变量
+  return process.env.DASHSCOPE_API_KEY || null;
 }
 
 function getBaseUrl(): string | null {
