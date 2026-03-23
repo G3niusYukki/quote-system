@@ -4,7 +4,7 @@ export interface Quote {
   sheet_name: string;
   country: string;
   transport_type: "海运" | "空运";
-  cargo_type: "普货" | "敏感" | "特货" | "纯普货";
+  cargo_type: "普货" | "敏感" | "特货" | "纯普货" | "普敏";
   channel_name: string;
   zone: string;
   postcode_min: string;
@@ -22,6 +22,7 @@ export interface Surcharge {
   id: number;
   sheet_name: string;
   category: "偏远" | "超尺寸" | "品类" | "超重" | "私人地址" | "拦截";
+  item_type?: string | null;
   charge_type: "per_kg" | "per_item" | "fixed";
   charge_value: number;
   condition: string;
