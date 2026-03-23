@@ -11,10 +11,17 @@ function getApiKey(): string | null {
   if (envKey) return envKey;
   try {
     if (fs.existsSync(CONFIG_PATH)) {
-      const config = JSON.parse(fs.readFileSync(CONFIG_PATH, "utf-8"));
-      return config.dashscopeApiKey || null;
+      const raw = fs.readFileSync(CONFIG_PATH, "utf-8");
+      const config = JSON.parse(raw);
+      const key = config.dashscopeApiKey || null;
+      console.log("[rule-extractor] config check:", CONFIG_PATH, "hasKey:", !!key);
+      return key;
+    } else {
+      console.log("[rule-extractor] config not found:", CONFIG_PATH, "cwd:", process.cwd());
     }
-  } catch {}
+  } catch (e) {
+    console.log("[rule-extractor] config read error:", e);
+  }
   return null;
 }
 
