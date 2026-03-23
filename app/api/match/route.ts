@@ -1,5 +1,5 @@
 import { NextRequest, NextResponse } from "next/server";
-import { getQuotesByFilters, getRules } from "@/lib/db";
+import { getQuotesByFilters, getRules, recordQuery } from "@/lib/db";
 import type { MatchRequest, MatchResult, SurchargeDetail } from "@/types";
 import path from "path";
 import fs from "fs";
@@ -33,6 +33,11 @@ export async function POST(req: NextRequest) {
   try {
     const body: MatchRequest = await req.json();
     const { country, transport_type, cargo_type, actual_weight, dimensions, item_types, is_private_address, postcode, upstream } = body;
+
+    const _upstream: string = upstream ?? "";
+    const _postcode: string = postcode ?? "";
+    const _isPrivate: boolean = is_private_address ?? false;
+    const _itemTypes: string[] = item_types ?? [];
 
     // 计算体积重和计费重量
     const volumeWeight = (dimensions.length * dimensions.width * dimensions.height) / 6000;
@@ -211,6 +216,14 @@ export async function POST(req: NextRequest) {
     if (results.length > 0) {
       results[0].is_lowest = true;
     }
+
+    recordQuery({
+      country, transport_type, cargo_type, actual_weight,
+      length: dimensions.length, width: dimensions.width, height: dimensions.height,
+      volume_weight: volumeWeight, chargeable_weight: chargeableWeight,
+      item_types: _itemTypes, is_private_address: _isPrivate, postcode: _postcode, upstream: _upstream,
+      result: results,
+    });
 
     return NextResponse.json({ matches: results });
   } catch (e) {
