@@ -14,6 +14,7 @@ export interface Quote {
   unit_price: number;
   time_estimate: string;
   raw_text: string;
+  upstream: string;
   created_at: string;
 }
 
@@ -28,6 +29,7 @@ export interface Surcharge {
   condition: string;
   description: string;
   raw_text: string;
+  upstream: string;
   created_at: string;
 }
 
@@ -37,6 +39,7 @@ export interface Restriction {
   sheet_name: string;
   type: "品类限制" | "尺寸限制" | "服务范围";
   content: string;
+  upstream: string;
   created_at: string;
 }
 
@@ -49,6 +52,7 @@ export interface CompensationRule {
   rate_per_kg: number | null;
   max_compensation: number | null;
   notes: string;
+  upstream: string;
   created_at: string;
 }
 
@@ -60,6 +64,7 @@ export interface BillingRule {
   rule_key: string;
   rule_value: string;
   raw_text: string;
+  upstream: string;
   created_at: string;
 }
 
@@ -67,6 +72,7 @@ export interface BillingRule {
 export interface UploadHistory {
   id: number;
   filename: string;
+  upstream: string;
   sheet_count: number;
   uploaded_at: string;
   status: string;
@@ -86,8 +92,10 @@ export interface StatusResponse {
   has_data: boolean;
   last_upload: string | null;
   last_filename: string | null;
+  last_upstream: string | null;
   channels: number;
   surcharges: number;
+  upstreams: string[];
 }
 
 // 匹配请求
@@ -100,6 +108,7 @@ export interface MatchRequest {
   item_types: string[];
   is_private_address: boolean;
   postcode?: string;
+  upstream?: string; // 不填则查所有上游
 }
 
 // 匹配结果
@@ -111,6 +120,7 @@ export interface SurchargeDetail {
 }
 
 export interface MatchResult {
+  upstream: string;
   channel: string;
   zone: string;
   volume_weight: number;
@@ -120,10 +130,36 @@ export interface MatchResult {
   total: number;
   time_estimate: string;
   notes: string;
+  is_lowest: boolean;
 }
 
 // AI 对话
 export interface ChatMessage {
   role: "user" | "assistant";
   content: string;
+}
+
+// 统一规则记录 (AI提取 + 手动录入)
+export interface RuleRecord {
+  id?: number;
+  upstream: string;
+  category: "surcharge" | "restriction" | "compensation" | "billing";
+  source: "ai" | "manual";
+  type: string;
+  item_type: string | null;
+  charge_type: "per_kg" | "per_item" | "fixed" | null;
+  charge_value: number | null;
+  condition: string;
+  description: string;
+  content: string;
+  standard: string | null;
+  rate_per_kg: number | null;
+  max_compensation: number | null;
+  notes: string | null;
+  rule_type: string | null;
+  rule_key: string | null;
+  rule_value: string | null;
+  raw_text: string;
+  created_at?: string;
+  updated_at?: string;
 }

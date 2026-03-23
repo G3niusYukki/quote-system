@@ -2,15 +2,13 @@ import { NextRequest, NextResponse } from "next/server";
 import crypto from "crypto";
 import {
   getDb,
-  clearAllData,
+  clearUpstreamData,
   insertQuote,
-  insertSurcharge,
-  insertRestriction,
-  insertCompensation,
-  insertBillingRule,
+  insertRule,
   recordUpload,
 } from "@/lib/db";
 import { parseExcel } from "@/lib/parser";
+import { extractRulesFromExcel } from "@/lib/rule-extractor";
 
 export const runtime = "nodejs";
 
@@ -23,24 +21,26 @@ export async function POST(req: NextRequest) {
       return NextResponse.json({ success: false, error: "未上传文件" }, { status: 400 });
     }
 
+    const upstream = (formData.get("upstream") as string | null)?.trim() || "默认上游";
     const buffer = Buffer.from(await file.arrayBuffer());
     const checksum = crypto.createHash("md5").update(buffer).digest("hex");
 
     // 解析
-    const parseResult = parseExcel(buffer);
+    const parseResult = parseExcel(buffer, upstream);
 
-    // 写入数据库（全量替换）
+    // 写入数据库（该上游旧数据全量替换）
     const db = getDb();
-    clearAllData();
+    clearUpstreamData(upstream);
 
     for (const q of parseResult.quotes) insertQuote(q);
-    for (const s of parseResult.surcharges) insertSurcharge(s);
-    for (const r of parseResult.restrictions) insertRestriction(r);
-    for (const c of parseResult.compensationRules) insertCompensation(c);
-    for (const b of parseResult.billingRules) insertBillingRule(b);
 
-    // 记录上传历史
-    recordUpload(file.name, parseResult.quotes.length, checksum);
+    // AI extract rules
+    const aiResult = await extractRulesFromExcel(buffer, upstream);
+    for (const r of aiResult.rules) {
+      try { insertRule(r); } catch { /* skip bad rule */ }
+    }
+
+    recordUpload(file.name, parseResult.quotes.length, checksum, upstream, buffer.toString("base64"));
 
     // 获取所有渠道名
     const channels = [...new Set(parseResult.quotes.map((q) => q.channel_name))];
@@ -51,6 +51,8 @@ export async function POST(req: NextRequest) {
         sheets: channels,
         channels: parseResult.quotes.length,
         surcharges: parseResult.surcharges.length,
+        rules_ai_count: aiResult.rules.length,
+        ai_warning: aiResult.aiWarning,
         unparsed_warnings: parseResult.unparsedWarnings,
       },
     });
