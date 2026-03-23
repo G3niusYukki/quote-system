@@ -85,22 +85,6 @@ export async function POST(req: NextRequest) {
         }
       }
 
-      // 异形包装附加费（任何非标准纸箱包装）
-      const yxSurcharges = allSurcharges.filter((s) => s.type === "异形包装");
-      for (const s of yxSurcharges) {
-        if (s.charge_value != null) {
-          const amount = s.charge_value;
-          console.log("[match] 异形包装 surcharge:", s.description, "amount:", amount);
-          surcharges.push({
-            name: s.description,
-            type: "fixed",
-            value: s.charge_value,
-            amount,
-          });
-          totalSurcharge += amount;
-        }
-      }
-
       // 尺寸/重量附加费（超尺寸、超重、材重超限）
       const dimSurcharges = allSurcharges.filter(
         (s) => s.type === "超尺寸" || s.type === "超重" || s.type === "材重超限"
@@ -108,7 +92,6 @@ export async function POST(req: NextRequest) {
       for (const s of dimSurcharges) {
         let triggered = false;
         const cond = s.condition ?? "";
-        const lower = cond.toLowerCase();
 
         if (s.type === "超尺寸") {
           // 最长边
@@ -129,7 +112,7 @@ export async function POST(req: NextRequest) {
           }
         } else if (s.type === "超重" || s.type === "材重超限") {
           // 判断基于实重还是材重
-          const useVolume = s.type === "材重超限" || /\u6750\u91cd/.test(lower); // "材重"
+          const useVolume = s.type === "材重超限" || cond.includes("材重");
           const weightToCheck = useVolume ? volumeWeight : actual_weight;
           // 条件格式：">22.5且≤49" 或 ">22.5KG且≤49KG"
           const rangeMatch = cond.match(/[>≥]\s*([\d.]+).*[<≤]\s*([\d.]+)/);
