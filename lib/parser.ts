@@ -43,7 +43,8 @@ export function parseExcel(buffer: Buffer, upstream: string = "默认上游"): P
       } else if (sheetName === "加拿大空运") {
         parseCanadaAirSheet(ws, result, sheetName, upstream);
       } else {
-        result.unparsedWarnings.push(`未知的Sheet: ${sheetName}`);
+        // 未知名称 → 尝试自动检测类型
+        autoDetectAndParse(ws, result, sheetName, upstream);
       }
     } catch (e) {
       result.unparsedWarnings.push(`解析 ${sheetName} 时出错: ${e}`);
@@ -57,6 +58,56 @@ function getCell(ws: XLSX.WorkSheet, addr: string): string {
   const cell = ws[addr];
   if (!cell || cell.v === undefined || cell.v === null) return "";
   return String(cell.v).trim();
+}
+
+// 读取一行的所有非空单元格文本
+function getRowTexts(ws: XLSX.WorkSheet, row: number, maxCol = 20): string[] {
+  const texts: string[] = [];
+  for (let c = 0; c < maxCol; c++) {
+    const addr = XLSX.utils.encode_cell({ r: row, c });
+    const v = ws[addr]?.v;
+    if (v !== undefined && v !== null && String(v).trim()) {
+      texts.push(String(v).trim());
+    }
+  }
+  return texts;
+}
+
+// 根据 Sheet 内容自动检测类型并解析
+function autoDetectAndParse(ws: XLSX.WorkSheet, result: ParseResult, sheetName: string, upstream: string) {
+  const row0 = getRowTexts(ws, 0); // 第1行
+  const row1 = getRowTexts(ws, 1); // 第2行
+  const row2 = getRowTexts(ws, 2); // 第3行
+  const row3 = getRowTexts(ws, 3); // 第4行
+  const allTexts = [...row0, ...row1, ...row2, ...row3].join(" ");
+
+  const text = allTexts;
+
+  // 检测国家：看区域名关键字
+  if (/美国|西岸|东岸|中部|Zone\s*1|Zone\s*2|Zone\s*3/i.test(text)) {
+    // 美国海运：根据时效行数判断普货还是敏感
+    // 普货有7行数据(3 zones x 2 types + header)，敏感只有3行
+    const hasFastAndSlow = getRowTexts(ws, 4).length > 0;
+    if (hasFastAndSlow) {
+      parseUSSheet(ws, result, sheetName, upstream);
+    } else {
+      parseUSSensitiveSheet(ws, result, sheetName, upstream);
+    }
+    return;
+  }
+
+  if (/加拿大|Canada|CA\d|东岸.*加拿大|西岸.*加拿大/i.test(text)) {
+    parseCanadaSeaSheet(ws, result, sheetName, upstream);
+    return;
+  }
+
+  if (/澳大利亚|澳洲|Australia|悉尼|墨尔本|布里斯班/i.test(text)) {
+    parseAustraliaAirSheet(ws, result, sheetName, upstream);
+    return;
+  }
+
+  // 无法识别，记录警告
+  result.unparsedWarnings.push(`无法识别Sheet类型: ${sheetName}，请检查表头格式`);
 }
 
 // ============================================================
