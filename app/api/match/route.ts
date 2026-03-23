@@ -1,12 +1,32 @@
 import { NextRequest, NextResponse } from "next/server";
 import { getQuotesByFilters, getRules } from "@/lib/db";
 import type { MatchRequest, MatchResult, SurchargeDetail } from "@/types";
+import path from "path";
+import fs from "fs";
 
 export const runtime = "nodejs";
 
-function matchCondition(aiCondition: string, patterns: string[]): boolean {
-  const text = aiCondition.toLowerCase();
-  return patterns.some(p => text.includes(p.toLowerCase()));
+interface RemoteZone {
+  偏远邮编: string[];
+  偏远说明: string;
+  偏远附加费: number;
+  charge_type: string;
+}
+
+function loadRemoteZones(): Record<string, RemoteZone> {
+  try {
+    const filePath = path.join(process.cwd(), "data", "remote-zones.json");
+    return JSON.parse(fs.readFileSync(filePath, "utf-8"));
+  } catch {
+    return {};
+  }
+}
+
+function isRemotePostcode(postcode: string, country: string, zones: Record<string, RemoteZone>): boolean {
+  const zone = zones[country];
+  if (!zone) return false;
+  const pc = postcode.replace(/\s|-/g, "").toUpperCase();
+  return zone.偏远邮编.some((prefix) => pc.startsWith(prefix));
 }
 
 export async function POST(req: NextRequest) {
@@ -74,7 +94,6 @@ export async function POST(req: NextRequest) {
           const amount = surcharge.charge_type === "per_kg"
             ? surcharge.charge_value * chargeableWeight
             : surcharge.charge_value;
-          console.log("[match] itemType:", itemType, "found surcharge:", surcharge.description, "amount:", amount);
           surcharges.push({
             name: surcharge.description,
             type: (surcharge.charge_type as "per_kg" | "per_item" | "fixed") ?? "fixed",
@@ -130,7 +149,6 @@ export async function POST(req: NextRequest) {
 
         if (triggered && s.charge_value != null) {
           const amount = s.charge_value;
-          console.log("[match] dim surcharge:", s.type, s.description, "amount:", amount);
           surcharges.push({
             name: s.description,
             type: "fixed",
@@ -144,7 +162,6 @@ export async function POST(req: NextRequest) {
       // 私人地址附加费
       if (is_private_address) {
         const privateSurcharge = allSurcharges.find((s) => s.type === "私人地址");
-        console.log("[match] private check:", is_private_address, "found:", privateSurcharge?.description, privateSurcharge?.charge_value);
         if (privateSurcharge && privateSurcharge.charge_value != null) {
           const amount = privateSurcharge.charge_type === "per_kg"
             ? privateSurcharge.charge_value * chargeableWeight
@@ -159,13 +176,19 @@ export async function POST(req: NextRequest) {
         }
       }
 
-      // 偏远附加费（需要邮编判断，这里简化处理：标记需确认）
-      let remoteNote = "";
-      if (postcode) {
+      // 偏远附加费（本地邮编库自动判断）
+      const remoteZones = loadRemoteZones();
+      if (postcode && isRemotePostcode(postcode, country, remoteZones)) {
+        const zone = remoteZones[country];
         const remoteSurcharge = allSurcharges.find((s) => s.type === "偏远");
-        if (remoteSurcharge && remoteSurcharge.charge_value != null) {
-          remoteNote = `(邮编${postcode}需确认是否偏远，如偏远另加${remoteSurcharge.charge_value}元/件)`;
-        }
+        const amount = (remoteSurcharge?.charge_value ?? zone?.偏远附加费) ?? 210;
+        surcharges.push({
+          name: "偏远地区附加费",
+          type: "per_item",
+          value: amount,
+          amount,
+        });
+        totalSurcharge += amount;
       }
 
       results.push({
@@ -178,10 +201,9 @@ export async function POST(req: NextRequest) {
         surcharges,
         total: Math.round((basePrice + totalSurcharge) * 100) / 100,
         time_estimate: matchedQuote.time_estimate,
-        notes: remoteNote || "以上为基础费用，最终以体积重计算结果为准",
+        notes: "以上为基础费用，最终以体积重计算结果为准",
         is_lowest: false,
       });
-      console.log("[match] result:", channelName, "surcharges:", surcharges.map(s => `${s.name}(+${s.amount})`));
     }
 
     // 按总价排序，标记最低价
