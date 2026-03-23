@@ -16,14 +16,22 @@ export const runtime = "nodejs";
 const CONFIG_PATH = path.join(process.cwd(), "data", "config.json");
 
 function getApiKey(): string | null {
-  // 优先读环境变量
   const envKey = process.env.DASHSCOPE_API_KEY;
   if (envKey) return envKey;
-  // 其次读配置文件
   try {
     if (fs.existsSync(CONFIG_PATH)) {
       const config = JSON.parse(fs.readFileSync(CONFIG_PATH, "utf-8"));
       return config.dashscopeApiKey || null;
+    }
+  } catch {}
+  return null;
+}
+
+function getBaseUrl(): string | null {
+  try {
+    if (fs.existsSync(CONFIG_PATH)) {
+      const config = JSON.parse(fs.readFileSync(CONFIG_PATH, "utf-8"));
+      return config.baseUrl || null;
     }
   } catch {}
   return null;
@@ -38,6 +46,7 @@ export async function POST(req: NextRequest) {
     }
 
     const apiKey = getApiKey();
+    const baseUrl = getBaseUrl();
     if (!apiKey) {
       return NextResponse.json({ error: "请先在设置页配置百炼 API Key" }, { status: 500 });
     }
@@ -59,7 +68,7 @@ export async function POST(req: NextRequest) {
     const timeout = setTimeout(() => controller.abort(), 60000);
 
     try {
-      const answer = await chat({ apiKey, prompt, signal: controller.signal });
+      const answer = await chat({ apiKey, prompt, baseUrl: baseUrl || undefined, signal: controller.signal });
       clearTimeout(timeout);
       return NextResponse.json({ answer });
     } catch (e) {

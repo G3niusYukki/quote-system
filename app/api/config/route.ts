@@ -8,6 +8,7 @@ export const runtime = "nodejs";
 
 interface Config {
   dashscopeApiKey?: string;
+  baseUrl?: string;
 }
 
 function readConfig(): Config {
@@ -29,17 +30,26 @@ export async function GET() {
   const config = readConfig();
   return NextResponse.json({
     hasKey: !!config.dashscopeApiKey,
-    // 不返回 key 本身，安全
+    baseUrl: config.baseUrl || "",
   });
 }
 
 export async function POST(req: NextRequest) {
   try {
-    const { apiKey } = await req.json();
-    if (!apiKey || typeof apiKey !== "string" || !apiKey.trim()) {
-      return NextResponse.json({ error: "API Key 不能为空" }, { status: 400 });
+    const body = await req.json();
+    const { apiKey, baseUrl } = body;
+
+    if (apiKey !== undefined) {
+      if (typeof apiKey !== "string" || !apiKey.trim()) {
+        return NextResponse.json({ error: "API Key 不能为空" }, { status: 400 });
+      }
     }
-    writeConfig({ dashscopeApiKey: apiKey.trim() });
+
+    const config = readConfig();
+    if (apiKey !== undefined) config.dashscopeApiKey = apiKey.trim();
+    if (baseUrl !== undefined) config.baseUrl = typeof baseUrl === "string" ? baseUrl.trim() : "";
+
+    writeConfig(config);
     return NextResponse.json({ success: true });
   } catch (e) {
     return NextResponse.json({ error: String(e) }, { status: 500 });

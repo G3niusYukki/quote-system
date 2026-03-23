@@ -1,16 +1,18 @@
-const DASHSCOPE_API_URL = "https://dashscope.aliyuncs.com/compatible-mode/v1/chat/completions";
+const DEFAULT_BASE_URL = "https://dashscope.aliyuncs.com/compatible-mode/v1/chat/completions";
 const MODEL = "qwen-plus";
 
 export interface ChatOptions {
   apiKey: string;
   prompt: string;
+  baseUrl?: string;
   signal?: AbortSignal;
 }
 
 export async function chat(options: ChatOptions): Promise<string> {
-  const { apiKey, prompt, signal } = options;
+  const { apiKey, prompt, baseUrl, signal } = options;
+  const url = baseUrl || DEFAULT_BASE_URL;
 
-  const response = await fetch(DASHSCOPE_API_URL, {
+  const response = await fetch(url, {
     method: "POST",
     headers: {
       "Content-Type": "application/json",
@@ -18,12 +20,7 @@ export async function chat(options: ChatOptions): Promise<string> {
     },
     body: JSON.stringify({
       model: MODEL,
-      messages: [
-        {
-          role: "user",
-          content: prompt,
-        },
-      ],
+      messages: [{ role: "user", content: prompt }],
       temperature: 0.3,
       max_tokens: 2000,
     }),
