@@ -8,7 +8,7 @@ export default function HomePage() {
         <p className="text-gray-600 text-lg mb-10">
           上传报价表，智能匹配最优渠道，AI 问答快速查询条款
         </p>
-        <div className="flex gap-4 justify-center">
+        <div className="flex gap-4 justify-center mb-6">
           <Link
             href="/upload"
             className="px-8 py-3 bg-blue-600 text-white rounded-lg font-medium hover:bg-blue-700 transition-colors"
@@ -22,6 +22,7 @@ export default function HomePage() {
             查询报价
           </Link>
         </div>
+        <Link href="/settings" className="text-gray-400 hover:text-gray-600 text-sm">⚙ 系统设置</Link>
       </div>
     </div>
   );

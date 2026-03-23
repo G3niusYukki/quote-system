@@ -1,4 +1,6 @@
 import { NextRequest, NextResponse } from "next/server";
+import path from "path";
+import fs from "fs";
 import {
   getAllQuotesForChat,
   getAllSurcharges,
@@ -11,6 +13,22 @@ import type { ChatMessage } from "@/types";
 
 export const runtime = "nodejs";
 
+const CONFIG_PATH = path.join(process.cwd(), "data", "config.json");
+
+function getApiKey(): string | null {
+  // 优先读环境变量
+  const envKey = process.env.DASHSCOPE_API_KEY;
+  if (envKey) return envKey;
+  // 其次读配置文件
+  try {
+    if (fs.existsSync(CONFIG_PATH)) {
+      const config = JSON.parse(fs.readFileSync(CONFIG_PATH, "utf-8"));
+      return config.dashscopeApiKey || null;
+    }
+  } catch {}
+  return null;
+}
+
 export async function POST(req: NextRequest) {
   try {
     const { question, history = [] }: { question: string; history?: ChatMessage[] } = await req.json();
@@ -19,12 +37,11 @@ export async function POST(req: NextRequest) {
       return NextResponse.json({ error: "问题不能为空" }, { status: 400 });
     }
 
-    const apiKey = process.env.DASHSCOPE_API_KEY;
+    const apiKey = getApiKey();
     if (!apiKey) {
-      return NextResponse.json({ error: "未配置 DASHSCOPE_API_KEY" }, { status: 500 });
+      return NextResponse.json({ error: "请先在设置页配置百炼 API Key" }, { status: 500 });
     }
 
-    // 获取所有数据
     const quotes = getAllQuotesForChat();
     const surcharges = getAllSurcharges();
     const restrictions = getAllRestrictions();
@@ -42,11 +59,7 @@ export async function POST(req: NextRequest) {
     const timeout = setTimeout(() => controller.abort(), 60000);
 
     try {
-      const answer = await chat({
-        apiKey,
-        prompt,
-        signal: controller.signal,
-      });
+      const answer = await chat({ apiKey, prompt, signal: controller.signal });
       clearTimeout(timeout);
       return NextResponse.json({ answer });
     } catch (e) {

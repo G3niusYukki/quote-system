@@ -11,9 +11,10 @@ export default function QueryPage() {
             <h1 className="text-xl font-bold text-gray-900">查询报价</h1>
             <p className="text-gray-500 text-sm">智能问答 + 自动渠道匹配</p>
           </div>
-          <Link href="/upload" className="text-blue-600 hover:underline text-sm">
-            ← 上传报价表
-          </Link>
+          <div className="flex gap-3 text-sm items-center">
+            <Link href="/settings" className="text-gray-500 hover:text-gray-700">⚙ 设置</Link>
+            <Link href="/upload" className="text-blue-600 hover:underline">← 上传报价表</Link>
+          </div>
         </div>
       </header>
       <main className="max-w-7xl mx-auto px-6 py-8">
