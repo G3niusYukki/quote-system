@@ -1,6 +1,6 @@
 "use client";
 
-import { useState } from "react";
+import { useState, useEffect } from "react";
 import type { MatchResult } from "@/types";
 
 const ITEM_TYPES = [
@@ -19,9 +19,17 @@ export default function MatchForm() {
   const [selectedItems, setSelectedItems] = useState<string[]>([]);
   const [isPrivate, setIsPrivate] = useState(false);
   const [postcode, setPostcode] = useState("");
+  const [upstream, setUpstream] = useState("");
+  const [upstreams, setUpstreams] = useState<string[]>([]);
   const [loading, setLoading] = useState(false);
   const [results, setResults] = useState<MatchResult[] | null>(null);
   const [error, setError] = useState("");
+
+  useEffect(() => {
+    fetch("/api/status")
+      .then((r) => r.json())
+      .then((d) => setUpstreams(d.upstreams || []));
+  }, []);
 
   const toggleItem = (item: string) => {
     setSelectedItems((prev) =>
@@ -52,6 +60,7 @@ export default function MatchForm() {
           item_types: selectedItems,
           is_private_address: isPrivate,
           postcode: postcode || undefined,
+          upstream: upstream || undefined,
         }),
       });
       const data = await res.json();
@@ -84,16 +93,30 @@ export default function MatchForm() {
             </select>
           </div>
           <div>
-            <label className="block text-sm font-medium text-gray-700 mb-1">运输类型</label>
+            <label className="block text-sm font-medium text-gray-700 mb-1">上游</label>
             <select
-              value={transportType}
-              onChange={(e) => setTransportType(e.target.value as "海运" | "空运")}
+              value={upstream}
+              onChange={(e) => setUpstream(e.target.value)}
               className="w-full border border-gray-300 rounded-lg px-3 py-2 text-sm focus:outline-none focus:ring-2 focus:ring-blue-500"
             >
-              <option value="海运">海运</option>
-              <option value="空运">空运</option>
+              <option value="">全部（比价）</option>
+              {upstreams.map((u) => (
+                <option key={u} value={u}>{u}</option>
+              ))}
             </select>
           </div>
+        </div>
+
+        <div>
+          <label className="block text-sm font-medium text-gray-700 mb-1">运输类型</label>
+          <select
+            value={transportType}
+            onChange={(e) => setTransportType(e.target.value as "海运" | "空运")}
+            className="w-full border border-gray-300 rounded-lg px-3 py-2 text-sm focus:outline-none focus:ring-2 focus:ring-blue-500"
+          >
+            <option value="海运">海运</option>
+            <option value="空运">空运</option>
+          </select>
         </div>
 
         <div>
@@ -225,11 +248,16 @@ export default function MatchForm() {
       {results && results.length > 0 && (
         <div className="space-y-3">
           {results.map((r, i) => (
-            <div key={i} className={`bg-white rounded-xl border p-5 ${i === 0 ? "border-blue-400 ring-1 ring-blue-100" : "border-gray-200"}`}>
+            <div key={i} className={`bg-white rounded-xl border p-5 ${r.is_lowest ? "border-blue-400 ring-1 ring-blue-100" : "border-gray-200"}`}>
               <div className="flex items-start justify-between mb-3">
                 <div>
-                  <h3 className="font-semibold text-gray-900">{r.channel}</h3>
-                  <p className="text-gray-500 text-sm">{r.zone} · {r.time_estimate}</p>
+                  <div className="flex items-center gap-2">
+                    <h3 className="font-semibold text-gray-900">{r.channel}</h3>
+                    {r.is_lowest && (
+                      <span className="text-xs bg-blue-100 text-blue-700 px-2 py-0.5 rounded-full font-medium">最低价</span>
+                    )}
+                  </div>
+                  <p className="text-gray-500 text-sm">{r.upstream} · {r.zone} · {r.time_estimate}</p>
                 </div>
                 <div className="text-right">
                   <div className="text-2xl font-bold text-blue-600">¥{r.total.toFixed(2)}</div>

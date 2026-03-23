@@ -155,28 +155,23 @@ function initSchema(db: Database.Database) {
     );
   `);
 
-  // 兼容旧数据库：若无 upstream 列则添加
-  try {
-    db.exec(`ALTER TABLE quotes ADD COLUMN upstream TEXT NOT NULL DEFAULT '默认上游'`);
-  } catch {}
-  try {
-    db.exec(`ALTER TABLE surcharges ADD COLUMN upstream TEXT NOT NULL DEFAULT '默认上游'`);
-  } catch {}
-  try {
-    db.exec(`ALTER TABLE restrictions ADD COLUMN upstream TEXT NOT NULL DEFAULT '默认上游'`);
-  } catch {}
-  try {
-    db.exec(`ALTER TABLE compensation_rules ADD COLUMN upstream TEXT NOT NULL DEFAULT '默认上游'`);
-  } catch {}
-  try {
-    db.exec(`ALTER TABLE billing_rules ADD COLUMN upstream TEXT NOT NULL DEFAULT '默认上游'`);
-  } catch {}
-  try {
-    db.exec(`ALTER TABLE upload_history ADD COLUMN upstream TEXT NOT NULL DEFAULT '默认上游'`);
-  } catch {}
-  try {
-    db.exec(`ALTER TABLE upload_history ADD COLUMN raw_excel_text TEXT`);
-  } catch {}
+  // 兼容旧数据库：用 PRAGMA 检测缺失列并补上
+  const addColumnIfMissing = (table: string, colDef: string) => {
+    const colName = colDef.split(" ")[0];
+    try {
+      const rows = db.prepare(`PRAGMA table_info(${table})`).all() as { name: string }[];
+      if (!rows.find((r) => r.name === colName)) {
+        db.exec(`ALTER TABLE ${table} ADD COLUMN ${colDef}`);
+      }
+    } catch {}
+  };
+  addColumnIfMissing("quotes", "upstream TEXT NOT NULL DEFAULT '默认上游'");
+  addColumnIfMissing("surcharges", "upstream TEXT NOT NULL DEFAULT '默认上游'");
+  addColumnIfMissing("restrictions", "upstream TEXT NOT NULL DEFAULT '默认上游'");
+  addColumnIfMissing("compensation_rules", "upstream TEXT NOT NULL DEFAULT '默认上游'");
+  addColumnIfMissing("billing_rules", "upstream TEXT NOT NULL DEFAULT '默认上游'");
+  addColumnIfMissing("upload_history", "upstream TEXT NOT NULL DEFAULT '默认上游'");
+  addColumnIfMissing("upload_history", "raw_excel_text TEXT");
 }
 
 // === 查询封装 ===

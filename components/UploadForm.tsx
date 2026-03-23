@@ -9,6 +9,8 @@ interface ParseResult {
     channels: number;
     surcharges: number;
     unparsed_warnings: string[];
+    rules_ai_count?: number;
+    ai_warning?: string;
   };
   error?: string;
 }
@@ -21,6 +23,8 @@ export default function UploadForm() {
     has_data: boolean;
     last_upload?: string;
     last_filename?: string;
+    last_upstream?: string;
+    upstreams?: string[];
     channels: number;
   } | null>(null);
   const fileRef = useRef<HTMLInputElement>(null);
@@ -43,8 +47,11 @@ export default function UploadForm() {
     setUploading(true);
     setResult(null);
     try {
+      const upstreamInput = document.getElementById("upstream-input") as HTMLInputElement | null;
+      const upstreamValue = upstreamInput?.value?.trim() || "";
       const formData = new FormData();
       formData.append("file", file);
+      if (upstreamValue) formData.append("upstream", upstreamValue);
       const res = await fetch("/api/upload", { method: "POST", body: formData });
       const data = await res.json();
       setResult(data);
@@ -84,7 +91,12 @@ export default function UploadForm() {
           </p>
           {status.last_filename && (
             <p className="text-green-600 text-sm mt-1">
-              当前文件：{status.last_filename}
+              当前文件：{status.last_filename} · 上游：{status.last_upstream}
+            </p>
+          )}
+          {status.upstreams && status.upstreams.length > 0 && (
+            <p className="text-green-600 text-sm">
+              已配置上游：{status.upstreams.join("、")}
             </p>
           )}
         </div>
@@ -132,18 +144,22 @@ export default function UploadForm() {
               <h2 className="text-lg font-semibold text-gray-900 mb-4 flex items-center gap-2">
                 <span className="text-green-500">✓</span> 解析成功
               </h2>
-              <div className="grid grid-cols-3 gap-4 mb-4">
+              <div className="grid grid-cols-4 gap-4 mb-4">
                 <div className="bg-gray-50 rounded-lg p-3 text-center">
                   <div className="text-2xl font-bold text-blue-600">{result.preview.channels}</div>
                   <div className="text-gray-500 text-sm">定价记录</div>
                 </div>
                 <div className="bg-gray-50 rounded-lg p-3 text-center">
-                  <div className="text-2xl font-bold text-blue-600">{result.preview.surcharges}</div>
-                  <div className="text-gray-500 text-sm">附加费规则</div>
+                  <div className="text-2xl font-bold text-purple-600">{result.preview.rules_ai_count ?? 0}</div>
+                  <div className="text-gray-500 text-sm">AI识别规则</div>
                 </div>
                 <div className="bg-gray-50 rounded-lg p-3 text-center">
                   <div className="text-2xl font-bold text-blue-600">{result.preview.sheets.length}</div>
                   <div className="text-gray-500 text-sm">渠道</div>
+                </div>
+                <div className="bg-gray-50 rounded-lg p-3 text-center">
+                  <div className="text-2xl font-bold text-orange-600">{result.preview.surcharges}</div>
+                  <div className="text-gray-500 text-sm">附加费规则</div>
                 </div>
               </div>
               <div className="space-y-1">
@@ -152,6 +168,11 @@ export default function UploadForm() {
                   <div key={s} className="text-gray-700 text-sm pl-2">• {s}</div>
                 ))}
               </div>
+              {result.preview.ai_warning && (
+                <div className="mt-4 bg-yellow-50 border border-yellow-200 rounded-lg p-3">
+                  <p className="text-yellow-700 text-sm font-medium">⚠ AI 规则提取：{result.preview.ai_warning}</p>
+                </div>
+              )}
               {result.preview.unparsed_warnings.length > 0 && (
                 <div className="mt-4 bg-yellow-50 border border-yellow-200 rounded-lg p-3">
                   <p className="text-yellow-700 text-sm font-medium">⚠ 部分条款未能自动解析：</p>

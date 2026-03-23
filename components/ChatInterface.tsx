@@ -3,6 +3,24 @@
 import { useState, useRef, useEffect } from "react";
 import type { ChatMessage } from "@/types";
 
+// Strip common Markdown symbols for cleaner display
+function stripMarkdown(text: string): string {
+  return text
+    .replace(/\*\*(.+?)\*\*/g, "$1")       // **bold** → text
+    .replace(/\*(.+?)\*/g, "$1")           // *italic* → text
+    .replace(/__(.+?)__/g, "$1")           // __bold__ → text
+    .replace(/_(.+?)_/g, "$1")             // _italic_ → text
+    .replace(/`(.+?)`/g, "$1")            // `code` → text
+    .replace(/```[\s\S]*?```/g, (m) => m.replace(/```/g, "")) // code blocks → plain
+    .replace(/^#{1,6}\s+/gm, "")          // # headers → plain text
+    .replace(/^\s*[-*+]\s+/gm, "• ")      // - lists → bullet points
+    .replace(/^\s*\d+\.\s+/gm, (m) => m.replace(/\d+\./, (n) => n.replace(".", ""))) // 1. → 1
+    .replace(/^\s*>\s+/gm, "")            // > quotes → plain
+    .replace(/\[(.+?)\]\(.+?\)/g, "$1")   // [text](url) → text
+    .replace(/---+/g, "")                 // dividers → nothing
+    .trim();
+}
+
 export default function ChatInterface() {
   const [messages, setMessages] = useState<ChatMessage[]>([]);
   const [input, setInput] = useState("");
@@ -83,7 +101,7 @@ export default function ChatInterface() {
                   : "bg-gray-100 text-gray-800"
               }`}
             >
-              {msg.content}
+              {msg.role === "assistant" ? stripMarkdown(msg.content) : msg.content}
             </div>
           </div>
         ))}
