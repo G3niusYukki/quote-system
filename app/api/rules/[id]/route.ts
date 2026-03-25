@@ -1,109 +1,90 @@
 import { NextRequest, NextResponse } from "next/server";
 import { getRequestAuth, withOrgContext } from "@/lib/request-auth";
 import { prisma } from "@/lib/db";
+import { withErrorHandler, BadRequestError, NotFoundError, UnauthorizedError } from "@/lib/error";
 
 // GET /api/rules/[id] — get single rule
-export async function GET(
-  req: NextRequest,
-  { params }: { params: Promise<{ id: string }> }
-) {
-  const auth = getRequestAuth(req);
-  if (!auth) {
-    return NextResponse.json({ error: "Unauthorized" }, { status: 401 });
-  }
+export const GET = withErrorHandler(
+  async (
+    req: NextRequest,
+    { params }: { params: Promise<{ id: string }> }
+  ) => {
+    const auth = getRequestAuth(req);
+    if (!auth) throw new UnauthorizedError("Unauthorized");
 
-  const { id } = await params;
+    const { id } = await params;
 
-  try {
-    const result = await withOrgContext(auth, async () => {
-      // eslint-disable-next-line @typescript-eslint/no-explicit-any
-      const rule = await prisma.rule.findUnique({
+    const rule = await withOrgContext(auth, async () => {
+      const r = await prisma.rule.findUnique({
         where: { id },
         include: {
           ruleVersion: { select: { id: true, upstream: true, version: true, status: true } },
         },
-      }) as unknown as {
-        id: string; ruleVersionId: string; category: string; type: string | null; itemType: object | null;
-        chargeType: string | null; chargeValue: object | null; condition: string | null;
-        description: string | null; content: string | null; priority: number; confidence: string;
-        source: string; rawEvidence: string | null; createdAt: Date; updatedAt: Date;
-        ruleVersion: { id: string; upstream: string; version: number; status: string };
-      } | null;
+      }) as unknown as Record<string, unknown> | null;
 
-      if (!rule) return null;
+      if (!r) throw new NotFoundError("Rule not found");
 
       return {
-        id: rule.id,
-        ruleVersionId: rule.ruleVersionId,
-        upstream: rule.ruleVersion.upstream,
-        version: rule.ruleVersion.version,
-        versionStatus: rule.ruleVersion.status,
-        category: rule.category,
-        type: rule.type,
-        itemType: rule.itemType,
-        chargeType: rule.chargeType,
-        chargeValue: rule.chargeValue ? Number(rule.chargeValue) : null,
-        condition: rule.condition,
-        description: rule.description,
-        content: rule.content,
-        priority: rule.priority,
-        confidence: rule.confidence,
-        source: rule.source,
-        rawEvidence: rule.rawEvidence,
-        createdAt: rule.createdAt ? rule.createdAt.toISOString() : null,
-        updatedAt: rule.updatedAt ? rule.updatedAt.toISOString() : null,
+        id: r.id,
+        ruleVersionId: r.ruleVersionId,
+        upstream: (r.ruleVersion as Record<string, unknown>)?.upstream,
+        version: (r.ruleVersion as Record<string, unknown>)?.version,
+        versionStatus: (r.ruleVersion as Record<string, unknown>)?.status,
+        category: r.category,
+        type: r.type,
+        itemType: r.itemType,
+        chargeType: r.chargeType,
+        chargeValue: r.chargeValue ? Number(r.chargeValue) : null,
+        condition: r.condition,
+        description: r.description,
+        content: r.content,
+        priority: r.priority,
+        confidence: r.confidence,
+        source: r.source,
+        rawEvidence: r.rawEvidence,
+        createdAt: (r.createdAt as Date)?.toISOString() ?? null,
+        updatedAt: (r.updatedAt as Date)?.toISOString() ?? null,
       };
     });
 
-    if (!result) {
-      return NextResponse.json({ error: "Rule not found" }, { status: 404 });
-    }
-
-    return NextResponse.json(result);
-  } catch (err) {
-    console.error("[GET /api/rules/[id]]", err);
-    return NextResponse.json({ error: "Internal server error" }, { status: 500 });
+    return NextResponse.json(rule);
   }
-}
+);
 
 // PUT /api/rules/[id] — update a rule
-export async function PUT(
-  req: NextRequest,
-  { params }: { params: Promise<{ id: string }> }
-) {
-  const auth = getRequestAuth(req);
-  if (!auth) {
-    return NextResponse.json({ error: "Unauthorized" }, { status: 401 });
-  }
+export const PUT = withErrorHandler(
+  async (
+    req: NextRequest,
+    { params }: { params: Promise<{ id: string }> }
+  ) => {
+    const auth = getRequestAuth(req);
+    if (!auth) throw new UnauthorizedError("Unauthorized");
 
-  const { id } = await params;
-  let body: Record<string, unknown>;
-  try {
-    body = await req.json();
-  } catch {
-    return NextResponse.json({ error: "Invalid JSON body" }, { status: 400 });
-  }
+    const { id } = await params;
 
-  const { category, type, itemType, chargeType, chargeValue, condition, description, content, priority, confidence, source, rawEvidence } = body;
-
-  if (category) {
-    const VALID_CATEGORIES = ["surcharge", "restriction", "compensation", "billing"];
-    if (!VALID_CATEGORIES.includes(category as string)) {
-      return NextResponse.json(
-        { error: `Invalid category. Must be one of: ${VALID_CATEGORIES.join(", ")}` },
-        { status: 400 }
-      );
+    let body: Record<string, unknown>;
+    try {
+      body = await req.json();
+    } catch {
+      throw new BadRequestError("Invalid JSON body");
     }
-  }
 
-  try {
+    const { category, type, itemType, chargeType, chargeValue, condition, description, content, priority, confidence, source, rawEvidence } = body;
+
+    if (category) {
+      const VALID_CATEGORIES = ["surcharge", "restriction", "compensation", "billing"];
+      if (!VALID_CATEGORIES.includes(category as string)) {
+        throw new BadRequestError(`Invalid category. Must be one of: ${VALID_CATEGORIES.join(", ")}`);
+      }
+    }
+
     const result = await withOrgContext(auth, async () => {
       const existing = await prisma.rule.findUnique({ where: { id } });
-      if (!existing) throw new Error("NOT_FOUND");
+      if (!existing) throw new NotFoundError("Rule not found");
 
-      // eslint-disable-next-line @typescript-eslint/no-explicit-any
       const rule = await prisma.rule.update({
         where: { id },
+        // eslint-disable-next-line @typescript-eslint/no-explicit-any
         data: {
           ...(category !== undefined && { category: category as string }),
           ...(type !== undefined && { type: type as string | null }),
@@ -121,19 +102,13 @@ export async function PUT(
         include: {
           ruleVersion: { select: { id: true, upstream: true, version: true, status: true } },
         },
-      }) as unknown as {
-        id: string; ruleVersionId: string; category: string; type: string | null; itemType: object | null;
-        chargeType: string | null; chargeValue: object | null; condition: string | null;
-        description: string | null; content: string | null; priority: number; confidence: string;
-        source: string; rawEvidence: string | null; createdAt: Date; updatedAt: Date;
-        ruleVersion: { id: string; upstream: string; version: number; status: string };
-      };
+      }) as unknown as Record<string, unknown>;
 
       return {
         id: rule.id,
         ruleVersionId: rule.ruleVersionId,
-        upstream: rule.ruleVersion.upstream,
-        version: rule.ruleVersion.version,
+        upstream: (rule.ruleVersion as Record<string, unknown>)?.upstream,
+        version: (rule.ruleVersion as Record<string, unknown>)?.version,
         category: rule.category,
         type: rule.type,
         itemType: rule.itemType,
@@ -146,50 +121,34 @@ export async function PUT(
         confidence: rule.confidence,
         source: rule.source,
         rawEvidence: rule.rawEvidence,
-        createdAt: rule.createdAt ? rule.createdAt.toISOString() : null,
-        updatedAt: rule.updatedAt ? rule.updatedAt.toISOString() : null,
+        createdAt: (rule.createdAt as Date)?.toISOString() ?? null,
+        updatedAt: (rule.updatedAt as Date)?.toISOString() ?? null,
       };
     });
 
     return NextResponse.json(result);
-  } catch (err) {
-    console.error("[PUT /api/rules/[id]]", err);
-    const msg = err instanceof Error ? err.message : "Internal server error";
-    if (msg === "NOT_FOUND") {
-      return NextResponse.json({ error: "Rule not found" }, { status: 404 });
-    }
-    return NextResponse.json({ error: msg }, { status: 500 });
   }
-}
+);
 
 // DELETE /api/rules/[id] — delete a rule
-export async function DELETE(
-  req: NextRequest,
-  { params }: { params: Promise<{ id: string }> }
-) {
-  const auth = getRequestAuth(req);
-  if (!auth) {
-    return NextResponse.json({ error: "Unauthorized" }, { status: 401 });
-  }
+export const DELETE = withErrorHandler(
+  async (
+    req: NextRequest,
+    { params }: { params: Promise<{ id: string }> }
+  ) => {
+    const auth = getRequestAuth(req);
+    if (!auth) throw new UnauthorizedError("Unauthorized");
 
-  const { id } = await params;
+    const { id } = await params;
 
-  try {
     const result = await withOrgContext(auth, async () => {
       const existing = await prisma.rule.findUnique({ where: { id } });
-      if (!existing) throw new Error("NOT_FOUND");
+      if (!existing) throw new NotFoundError("Rule not found");
 
       await prisma.rule.delete({ where: { id } });
       return { deleted: true };
     });
 
     return NextResponse.json(result);
-  } catch (err) {
-    console.error("[DELETE /api/rules/[id]]", err);
-    const msg = err instanceof Error ? err.message : "Internal server error";
-    if (msg === "NOT_FOUND") {
-      return NextResponse.json({ error: "Rule not found" }, { status: 404 });
-    }
-    return NextResponse.json({ error: msg }, { status: 500 });
   }
-}
+);

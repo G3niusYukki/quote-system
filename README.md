@@ -13,49 +13,109 @@
 
 ## 技术栈
 
-- **框架**: Next.js 15 (App Router)
-- **语言**: TypeScript
-- **数据库**: SQLite (better-sqlite3)
-- **Excel 解析**: SheetJS (xlsx)
-- **AI**: 阿里云百炼 (DashScope) REST API
-- **样式**: Tailwind CSS
+| 类别 | 技术 |
+|------|------|
+| 框架 | Next.js 15 (App Router, React 19) |
+| 语言 | TypeScript (严格模式) |
+| 数据库 | PostgreSQL (Prisma ORM) |
+| 缓存/队列 | Redis + BullMQ |
+| Excel 解析 | SheetJS (xlsx) |
+| AI | 阿里云百炼 (DashScope) REST API |
+| 样式 | Tailwind CSS |
+| 鉴权 | JWT (cookie + header 双模式) |
+
+## 新架构说明
+
+### 数据库结构
+
+系统使用多租户架构，通过 `organizationId` 实现数据隔离。核心数据模型：
+
+- **Organization** — 租户/组织
+- **RuleVersion** — 规则版本（每个 upstream 独立版本，published/draft/archived）
+- **QuoteVersion** — 报价版本（与规则版本一一对应）
+- **Quote** — 渠道报价明细（关联 QuoteVersion）
+- **Rule** — 附加费/限制/赔偿/计费规则（关联 RuleVersion）
+- **Surcharge** — 附加费（关联 QuoteVersion）
+- **BillingRule** — 计费规则（关联 QuoteVersion）
+- **Restriction** — 限制规则（关联 QuoteVersion）
+- **ImportJob / ImportBlock / ParseIssue** — 导入流水线
+- **AuditLog** — 操作审计日志
+- **QueryHistory** — 询价历史
+
+### 数据流向
+
+```
+Excel 上传 → ImportJob → ImportBlock → ParseIssue (AI 审核)
+                                    ↓
+                            RuleVersion (draft)
+                                    ↓
+                            QuoteVersion (draft)
+                                    ↓
+                              人工审核
+                                    ↓
+                            RuleVersion (published)
+                            QuoteVersion (published)
+                                    ↓
+                              报价计算
+```
+
+### API 路由结构
+
+```
+/api/auth/*          — 登录/注册/登出
+/api/organizations/* — 租户管理
+/api/team/*          — 团队邀请
+/api/rule-versions/* — 规则版本管理
+/api/quote-versions/*— 报价版本管理
+/api/rules/*         — 规则 CRUD
+/api/quotes/*        — 报价查询
+/api/dictionaries/*  — 标准字典
+/api/import-jobs/*   — 导入任务
+/api/review/*        — 审核队列
+/api/history/*       — 询价历史
+/api/audit-logs/*    — 审计日志
+/api/status          — 系统状态
+/api/config          — 配置管理
+```
 
 ## 项目结构
 
 ```
 quote-system/
 ├── app/                      # Next.js App Router 页面
-│   ├── api/
-│   │   ├── chat/             # AI 问答接口
-│   │   ├── config/            # 配置文件读写
-│   │   ├── match/             # 渠道匹配计算
-│   │   ├── rules/             # 规则 CRUD + AI 重新提取
-│   │   ├── status/            # 系统状态
-│   │   └── upload/            # Excel 上传解析
-│   ├── query/                 # 查询页面（/query）
-│   ├── rules/                 # 规则管理页面（/rules）
-│   ├── settings/              # 设置页面（/settings）
-│   ├── upload/                # 上传页面（/upload）
+│   ├── api/                   # API 路由
+│   ├── (auth)/                # 认证页面
+│   ├── (dashboard)/           # 仪表盘页面
+│   │   ├── upload/            # Excel 上传
+│   │   ├── rules/             # 规则管理
+│   │   ├── query/             # 询价查询
+│   │   ├── review/            # 审核队列
+│   │   ├── settings/          # 设置
+│   │   └── team/             # 团队管理
 │   └── page.tsx               # 首页
 ├── components/                # React 组件
-│   ├── ChatInterface.tsx       # AI 对话组件
-│   ├── MatchForm.tsx           # 匹配查询表单
-│   ├── RuleForm.tsx            # 规则编辑弹窗
-│   └── UploadForm.tsx          # Excel 上传组件
-├── lib/
-│   ├── chat.ts                 # 百炼 API 调用封装
-│   ├── config.ts               # 配置文件读写
-│   ├── db.ts                   # SQLite 数据库层
-│   ├── parser.ts               # Excel 硬编码解析器
-│   └── rule-extractor.ts       # AI 规则提取器
-├── types/
-│   └── index.ts                # TypeScript 类型定义
-└── data/                      # 运行时数据（不提交到 git）
-    ├── config.json             # API Key 配置（不提交）
-    └── quote.db                # SQLite 数据库（不提交）
+├── lib/                       # 核心库
+│   ├── db.ts                  # Prisma 客户端 + 多租户隔离
+│   ├── auth.ts                # JWT 工具
+│   ├── error.ts               # 统一错误类
+│   ├── rbac/                  # 权限控制
+│   └── queue.ts               # BullMQ 队列
+├── prisma/
+│   └── schema.prisma          # 数据库 schema
+├── scripts/                   # 工具脚本
+│   └── migrate-from-sqlite.ts # SQLite → PostgreSQL 迁移
+└── workers/                   # 后台任务
+    └── parse-excel.ts         # Excel 解析 Worker
 ```
 
-## 快速开始
+## 本地开发指南
+
+### 环境要求
+
+- Node.js 20+
+- PostgreSQL 15+
+- Redis 7+（用于 BullMQ 队列）
+- pnpm / npm
 
 ### 1. 安装依赖
 
@@ -63,9 +123,47 @@ quote-system/
 npm install
 ```
 
-### 2. 配置 API Key
+### 2. 配置环境变量
 
-复制配置模板并填入你的百炼 API Key：
+```bash
+cp .env.example .env
+# 编辑 .env，填入：
+# DATABASE_URL=postgresql://user:password@localhost:5432/quote_system
+# REDIS_URL=redis://localhost:6379
+# JWT_SECRET=your-secret-key
+# DASHSCOPE_API_KEY=your-api-key
+```
+
+### 3. 数据库初始化
+
+```bash
+# 生成 Prisma Client
+npm run db:generate
+
+# 推送 schema 到数据库（开发环境）
+npm run db:push
+
+# 或执行迁移（生产环境）
+npm run db:migrate
+```
+
+### 4. 从 SQLite 迁移历史数据（可选）
+
+如果有旧的 `data/quote.db`，运行迁移脚本：
+
+```bash
+npx tsx scripts/migrate-from-sqlite.ts
+```
+
+此脚本会：
+- 创建 "Default" 组织
+- 为每个上游创建 RuleVersion v1 (published) 和 QuoteVersion v1 (published)
+- 迁移 quotes / surcharges / restrictions / billing_rules / compensation_rules / rules
+- 从 `data/remote-zones.json` 导入偏远邮编附加费
+
+### 5. 配置 API Key
+
+复制配置模板并填入百炼 API Key：
 
 ```bash
 cp data/config.example.json data/config.json
@@ -74,13 +172,26 @@ cp data/config.example.json data/config.json
 
 或者在设置页面（`/settings`）直接填入。
 
-### 3. 启动开发服务器
+### 6. 启动开发服务器
 
 ```bash
 npm run dev
 ```
 
 打开 [http://localhost:3000](http://localhost:3000)
+
+### 7. 启动 Worker（后台任务）
+
+Excel 解析和 AI 规则提取由 BullMQ Worker 处理：
+
+```bash
+npm run worker
+```
+
+Worker 处理：
+- Excel 文件解析（ImportBlock 切片）
+- AI 规则提取（ParseIssue）
+- 置信度低的内容标记需人工审核
 
 ## 使用流程
 
@@ -154,29 +265,38 @@ npm run dev
 
 | 接口 | 方法 | 说明 |
 |------|------|------|
-| `/api/upload` | POST | 上传 Excel，解析定价 + AI 提取规则 |
-| `/api/match` | POST | 查询最优渠道（含附加费计算） |
+| `/api/rule-versions` | GET/POST | 获取/创建规则版本 |
+| `/api/rule-versions/[id]/publish` | POST | 发布规则版本 |
+| `/api/quote-versions` | GET/POST | 获取/创建报价版本 |
+| `/api/quote-versions/[id]/publish` | POST | 发布报价版本 |
 | `/api/rules` | GET/POST | 获取/新增规则 |
 | `/api/rules/[id]` | PUT/DELETE | 编辑/删除单条规则 |
-| `/api/rules/extract` | GET | 触发 AI 重新提取规则 |
-| `/api/chat` | POST | AI 规则问答 |
-| `/api/status` | GET | 系统状态（数据量、最近上传） |
-| `/api/config` | GET/PUT | 读取/写入配置文件 |
+| `/api/quotes/calculate` | POST | 计算最优渠道（含附加费） |
+| `/api/import-jobs` | GET/POST | 导入任务列表/创建 |
+| `/api/review/issues` | GET | 待审核问题列表 |
+| `/api/audit-logs` | GET | 审计日志 |
+| `/api/history` | GET | 询价历史 |
+| `/api/dictionaries` | GET | 标准字典 |
+| `/api/status` | GET | 系统状态（数据统计） |
+| `/api/config` | GET/PUT | 读取/写入配置 |
+| `/api/auth/*` | * | 认证接口 |
 
 ## 环境变量
 
 | 变量 | 说明 |
 |------|------|
+| `DATABASE_URL` | PostgreSQL 连接字符串 |
+| `REDIS_URL` | Redis 连接字符串（BullMQ） |
+| `JWT_SECRET` | JWT 签名密钥 |
 | `DASHSCOPE_API_KEY` | 百炼 API Key（优先级高于 config.json） |
-| `NEXT_PUBLIC_*` | 前端环境变量（需要 `NEXT_PUBLIC_` 前缀） |
+| `NEXT_PUBLIC_*` | 前端环境变量（需 `NEXT_PUBLIC_` 前缀） |
 
 ## 数据存储
 
-- `data/quote.db` — SQLite 数据库文件
+- PostgreSQL — 所有业务数据（通过 Prisma ORM 访问）
+- Redis — BullMQ 任务队列、缓存
 - `data/config.json` — API Key 配置（不提交到 git）
-- `data/upload_history` — 上传历史（含 Excel 原文，供 AI 重新提取用）
-
-数据库包含以下表：`quotes`、`surcharges`、`restrictions`、`compensation_rules`、`billing_rules`、`rules`、`upload_history`
+- `data/remote-zones.json` — 偏远邮编配置
 
 ## 部署
 
@@ -187,15 +307,6 @@ npm run build
 npm start
 ```
 
-### Vercel 部署
-
-```bash
-npm i -g vercel
-vercel
-```
-
-注意：SQLite（better-sqlite3）在 Vercel Serverless 环境需要使用 `@libsql/client` 替代，或使用持久化存储方案。
-
 ### Docker 部署
 
 ```dockerfile
@@ -204,7 +315,10 @@ WORKDIR /app
 COPY package*.json ./
 RUN npm ci
 COPY . .
+RUN npm run db:generate
 RUN npm run build
 EXPOSE 3000
 CMD ["npm", "start"]
 ```
+
+需要同时启动 PostgreSQL 和 Redis 容器，或使用 Docker Compose 编排。
