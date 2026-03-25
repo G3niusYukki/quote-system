@@ -49,6 +49,7 @@ export async function POST(req: NextRequest) {
     const url = config.baseUrl || "https://dashscope.aliyuncs.com/compatible-mode/v1/chat/completions";
     const model = config.baseUrl ? "qwen-plus" : "qwen-plus";
 
+    const start = Date.now();
     const response = await fetch(url, {
       method: "POST",
       headers: {
@@ -61,6 +62,7 @@ export async function POST(req: NextRequest) {
         max_tokens: 50,
       }),
     });
+    const latencyMs = Date.now() - start;
 
     const data = await response.json();
 
@@ -68,12 +70,14 @@ export async function POST(req: NextRequest) {
       return NextResponse.json({
         ok: false,
         error: data?.error?.message || `HTTP ${response.status}`,
+        latencyMs,
       });
     }
 
     return NextResponse.json({
       ok: true,
       answer: data.choices?.[0]?.message?.content || "连接成功（无回复内容）",
+      latencyMs,
     });
   } catch (e) {
     return NextResponse.json({ ok: false, error: String(e) }, { status: 500 });

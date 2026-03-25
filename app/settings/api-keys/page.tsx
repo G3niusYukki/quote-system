@@ -6,6 +6,13 @@ import { Button } from "@/components/ui/button";
 import { Input } from "@/components/ui/input";
 import { Label } from "@/components/ui/label";
 
+interface TestResult {
+  ok: boolean;
+  answer?: string;
+  error?: string;
+  latencyMs?: number;
+}
+
 export default function ApiKeysSettingsPage() {
   const [apiKey, setApiKey] = useState("");
   const [baseUrl, setBaseUrl] = useState("");
@@ -15,6 +22,10 @@ export default function ApiKeysSettingsPage() {
   const [saving, setSaving] = useState(false);
   const [saved, setSaved] = useState(false);
   const [error, setError] = useState("");
+
+  // Test connection state
+  const [testing, setTesting] = useState(false);
+  const [testResult, setTestResult] = useState<TestResult | null>(null);
 
   useEffect(() => {
     fetch("/api/config")
@@ -33,6 +44,7 @@ export default function ApiKeysSettingsPage() {
     setError("");
     setSaving(true);
     setSaved(false);
+    setTestResult(null);
 
     try {
       const res = await fetch("/api/config", {
@@ -48,7 +60,6 @@ export default function ApiKeysSettingsPage() {
       setSaved(true);
       setHasKey(true);
       setApiKey("");
-      // Update masked key display
       if (apiKey) {
         const key = apiKey.trim();
         setMaskedKey(key.length > 8 ? `${key.slice(0, 4)}${"*".repeat(key.length - 8)}${key.slice(-4)}` : `${"*".repeat(key.length)}`);
@@ -57,6 +68,36 @@ export default function ApiKeysSettingsPage() {
       setError("网络错误");
     } finally {
       setSaving(false);
+    }
+  };
+
+  const handleTest = async () => {
+    if (!apiKey && !hasKey) return;
+    setTesting(true);
+    setTestResult(null);
+
+    const keyToTest = apiKey || undefined;
+    const start = Date.now();
+    try {
+      const res = await fetch("/api/config/test", {
+        method: "POST",
+        headers: { "Content-Type": "application/json" },
+        body: JSON.stringify({ apiKey: keyToTest, baseUrl }),
+      });
+      const data = await res.json();
+      const clientLatency = Date.now() - start;
+      setTestResult({
+        ...data,
+        latencyMs: data.latencyMs ?? clientLatency,
+      });
+    } catch (err) {
+      setTestResult({
+        ok: false,
+        error: String(err),
+        latencyMs: Date.now() - start,
+      });
+    } finally {
+      setTesting(false);
     }
   };
 
@@ -73,7 +114,7 @@ export default function ApiKeysSettingsPage() {
     <div className="max-w-xl space-y-6">
       <div>
         <h1 className="text-xl font-bold text-gray-900">API Key 配置</h1>
-        <p className="text-sm text-gray-500 mt-1">配置阿里云百炼大模型的 API Key</p>
+        <p className="text-sm text-gray-500 mt-1">配置阿里云百炼大模型，用于 AI 规则提取</p>
       </div>
 
       <Card>
@@ -100,15 +141,13 @@ export default function ApiKeysSettingsPage() {
             )}
 
             <div>
-              <Label htmlFor="apiKey">
-                {hasKey ? "新的 API Key" : "API Key"}
-              </Label>
+              <Label htmlFor="apiKey">{hasKey ? "新的 API Key（留空保留当前）" : "API Key"}</Label>
               <Input
                 id="apiKey"
                 type="password"
                 value={apiKey}
                 onChange={(e) => setApiKey(e.target.value)}
-                placeholder={hasKey ? "留空则保留当前 Key" : "sk-xxxxxxxxxxxxxxxxxxxxxxxx"}
+                placeholder={hasKey ? "sk-xxxxxxxxxxxxxxxxxxxxxxxx" : "sk-xxxxxxxxxxxxxxxxxxxxxxxx"}
                 autoComplete="off"
               />
               <p className="text-xs text-gray-400 mt-1.5">
@@ -125,7 +164,7 @@ export default function ApiKeysSettingsPage() {
                 type="text"
                 value={baseUrl}
                 onChange={(e) => setBaseUrl(e.target.value)}
-                placeholder="留空则使用默认地址 dashscope.aliyuncs.com"
+                placeholder="留空则使用 dashscope.aliyuncs.com"
               />
               <p className="text-xs text-gray-400 mt-1.5">
                 如使用代理或第三方兼容接口，填写完整 URL
@@ -136,16 +175,45 @@ export default function ApiKeysSettingsPage() {
               <Button type="submit" disabled={saving}>
                 {saving ? "保存中..." : "保存配置"}
               </Button>
+              <Button
+                type="button"
+                variant="outline"
+                onClick={handleTest}
+                disabled={testing || (!apiKey && !hasKey)}
+              >
+                {testing ? "测试中..." : "测试连接"}
+              </Button>
               {saved && (
-                <span className="flex items-center text-green-600 text-sm gap-1">
+                <span className="flex items-center text-green-600 text-sm gap-1 self-center">
                   <svg className="w-4 h-4" fill="none" stroke="currentColor" viewBox="0 0 24 24">
                     <path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2} d="M5 13l4 4L19 7" />
                   </svg>
-                  配置已保存
+                  已保存
                 </span>
               )}
             </div>
           </form>
+
+          {/* Test result */}
+          {testResult && (
+            <div className={`mt-4 rounded-lg p-4 ${testResult.ok ? "bg-green-50 border border-green-200" : "bg-red-50 border border-red-200"}`}>
+              <div className="flex items-center justify-between mb-1">
+                <p className={`font-medium text-sm ${testResult.ok ? "text-green-800" : "text-red-800"}`}>
+                  {testResult.ok ? "✓ 连接成功" : "✗ 连接失败"}
+                </p>
+                {testResult.latencyMs !== undefined && (
+                  <span className="text-xs text-gray-400 font-mono">
+                    {testResult.latencyMs < 1000
+                      ? `${testResult.latencyMs}ms`
+                      : `${(testResult.latencyMs / 1000).toFixed(1)}s`}
+                  </span>
+                )}
+              </div>
+              <p className={`text-sm ${testResult.ok ? "text-green-700" : "text-red-700"}`}>
+                {testResult.ok ? testResult.answer : testResult.error}
+              </p>
+            </div>
+          )}
         </CardContent>
       </Card>
 
