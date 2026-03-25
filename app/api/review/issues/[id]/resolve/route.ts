@@ -1,6 +1,7 @@
 import { NextRequest, NextResponse } from "next/server";
 import { getRequestAuth, withOrgContext } from "@/lib/request-auth";
 import { prisma } from "@/lib/db";
+import { requirePermission } from "@/lib/rbac";
 
 // POST /api/review/issues/[id]/resolve
 // Body: { action: "accept" | "correct" | "unresolvable", corrections?: Record<string, unknown> }
@@ -14,6 +15,8 @@ export async function POST(
   }
 
   const { id } = await params;
+
+  requirePermission(auth.role, "review_rules");
 
   let body: {
     action?: string;

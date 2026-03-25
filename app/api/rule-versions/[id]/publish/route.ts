@@ -1,6 +1,7 @@
 import { NextRequest, NextResponse } from "next/server";
 import { getRequestAuth, withOrgContext } from "@/lib/request-auth";
 import { prisma } from "@/lib/db";
+import { requirePermission } from "@/lib/rbac";
 
 // POST /api/rule-versions/[id]/publish
 // Publish a draft rule version: sets status=published, publishedAt, publishedBy
@@ -15,6 +16,8 @@ export async function POST(
   }
 
   const { id } = await params;
+
+  requirePermission(auth.role, "publish_versions");
 
   try {
     const result = await withOrgContext(auth, async () => {

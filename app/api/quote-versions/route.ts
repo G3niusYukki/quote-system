@@ -1,6 +1,7 @@
 import { NextRequest, NextResponse } from "next/server";
 import { getRequestAuth, withOrgContext } from "@/lib/request-auth";
 import { prisma } from "@/lib/db";
+import { requirePermission } from "@/lib/rbac";
 
 // GET /api/quote-versions — list all quote versions
 // Query params: upstream, status, rule_version_id, page, pageSize
@@ -9,6 +10,8 @@ export async function GET(req: NextRequest) {
   if (!auth) {
     return NextResponse.json({ error: "Unauthorized" }, { status: 401 });
   }
+
+  requirePermission(auth.role, "query_quotes");
 
   const { searchParams } = new URL(req.url);
   const upstream = searchParams.get("upstream");
@@ -75,6 +78,8 @@ export async function POST(req: NextRequest) {
   if (!auth) {
     return NextResponse.json({ error: "Unauthorized" }, { status: 401 });
   }
+
+  requirePermission(auth.role, "upload_excel");
 
   let body: Record<string, unknown>;
   try {

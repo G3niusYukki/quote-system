@@ -1,6 +1,7 @@
 import { NextRequest, NextResponse } from "next/server";
 import { getRequestAuth, withOrgContext } from "@/lib/request-auth";
 import { prisma } from "@/lib/db";
+import { requirePermission } from "@/lib/rbac";
 
 // GET /api/rules — list rules with optional filters
 // Query params: version_id, category, type, source, page, pageSize, upstream
@@ -9,6 +10,8 @@ export async function GET(req: NextRequest) {
   if (!auth) {
     return NextResponse.json({ error: "Unauthorized" }, { status: 401 });
   }
+
+  requirePermission(auth.role, "review_rules");
 
   const { searchParams } = new URL(req.url);
   const versionId = searchParams.get("version_id");
@@ -112,6 +115,8 @@ export async function POST(req: NextRequest) {
   if (!auth) {
     return NextResponse.json({ error: "Unauthorized" }, { status: 401 });
   }
+
+  requirePermission(auth.role, "review_rules");
 
   let body: Record<string, unknown>;
   try {

@@ -1,6 +1,7 @@
 import { NextRequest, NextResponse } from "next/server";
 import { getRequestAuth, withOrgContext } from "@/lib/request-auth";
 import { prisma } from "@/lib/db";
+import { requirePermission } from "@/lib/rbac";
 
 // GET /api/review/issues — list low-confidence parse issues
 // Query params: issue_type, resolved (boolean), page, pageSize
@@ -9,6 +10,8 @@ export async function GET(req: NextRequest) {
   if (!auth) {
     return NextResponse.json({ error: "Unauthorized" }, { status: 401 });
   }
+
+  requirePermission(auth.role, "review_rules");
 
   const { searchParams } = new URL(req.url);
   const issueType = searchParams.get("issue_type");

@@ -7,6 +7,7 @@ import path from "path";
 import { prisma } from "@/lib/db";
 import { getRequestAuth, withOrgContext } from "@/lib/request-auth";
 import { getParseExcelQueue } from "@/lib/queue";
+import { requirePermission } from "@/lib/rbac";
 
 // Ensure /data/uploads exists
 const UPLOADS_DIR = "/data/uploads";
@@ -89,6 +90,8 @@ export async function POST(req: NextRequest) {
   }
 
   // Parse multipart form data
+  requirePermission(auth.role, "upload_excel");
+
   let body: FormData;
   try {
     body = await req.formData();
