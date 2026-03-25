@@ -47,3 +47,4 @@ next-env.d.ts
 
 # local config (contains secrets, copy to config.json and fill in)
 /data/config.json
+.worktrees/
