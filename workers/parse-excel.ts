@@ -4,9 +4,10 @@
  * Run as a standalone Node.js process:
  *   npx tsx workers/parse-excel.ts
  *
- * This worker runs independently of the Next.js server. It uses a raw
- * PrismaClient (without org-isolation extension) and receives the
- * organizationId via job data since there is no HTTP request context.
+ * Note: We use a raw PrismaClient here because the worker runs as an independent
+ * Node.js process without HTTP request context. Organization ID is passed
+ * explicitly via BullMQ job data (job.data.organizationId) rather than
+ * inferred from AsyncLocalStorage.
  */
 
 import { Job } from "bullmq";

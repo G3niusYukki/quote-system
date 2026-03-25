@@ -38,7 +38,7 @@ function createPrismaClient() {
           args.where = { ...args.where, organizationId: getOrgId() };
         } catch (e) {
           console.warn("[org-isolation] No org context available:", e);
-          return next(params);
+          return next(args);
         }
         return next(args);
       },
@@ -47,7 +47,7 @@ function createPrismaClient() {
           args.where = { ...args.where, organizationId: getOrgId() };
         } catch (e) {
           console.warn("[org-isolation] No org context available:", e);
-          return next(params);
+          return next(args);
         }
         return next(args);
       },
@@ -56,7 +56,7 @@ function createPrismaClient() {
           args.where = { ...args.where, organizationId: getOrgId() };
         } catch (e) {
           console.warn("[org-isolation] No org context available:", e);
-          return next(params);
+          return next(args);
         }
         return next(args);
       },
@@ -65,7 +65,7 @@ function createPrismaClient() {
           args.where = { ...args.where, organizationId: getOrgId() };
         } catch (e) {
           console.warn("[org-isolation] No org context available:", e);
-          return next(params);
+          return next(args);
         }
         return next(args);
       },
@@ -74,7 +74,7 @@ function createPrismaClient() {
           args.where = { ...args.where, organizationId: getOrgId() };
         } catch (e) {
           console.warn("[org-isolation] No org context available:", e);
-          return next(params);
+          return next(args);
         }
         return next(args);
       },
@@ -85,7 +85,7 @@ function createPrismaClient() {
           args.where = { ...args.where, organizationId: getOrgId() };
         } catch (e) {
           console.warn("[org-isolation] No org context available:", e);
-          return next(params);
+          return next(args);
         }
         return next(args);
       },
@@ -94,7 +94,7 @@ function createPrismaClient() {
           args.where = { ...args.where, organizationId: getOrgId() };
         } catch (e) {
           console.warn("[org-isolation] No org context available:", e);
-          return next(params);
+          return next(args);
         }
         return next(args);
       },
@@ -103,7 +103,7 @@ function createPrismaClient() {
           args.where = { ...args.where, organizationId: getOrgId() };
         } catch (e) {
           console.warn("[org-isolation] No org context available:", e);
-          return next(params);
+          return next(args);
         }
         return next(args);
       },
@@ -112,7 +112,7 @@ function createPrismaClient() {
           args.where = { ...args.where, organizationId: getOrgId() };
         } catch (e) {
           console.warn("[org-isolation] No org context available:", e);
-          return next(params);
+          return next(args);
         }
         return next(args);
       },
@@ -121,7 +121,7 @@ function createPrismaClient() {
           args.data = { ...args.data, organizationId: getOrgId() };
         } catch (e) {
           console.warn("[org-isolation] No org context available:", e);
-          return next(params);
+          return next(args);
         }
         return next(args);
       },
@@ -130,7 +130,7 @@ function createPrismaClient() {
           args.where = { ...args.where, organizationId: getOrgId() };
         } catch (e) {
           console.warn("[org-isolation] No org context available:", e);
-          return next(params);
+          return next(args);
         }
         return next(args);
       },
@@ -139,7 +139,7 @@ function createPrismaClient() {
           args.where = { ...args.where, organizationId: getOrgId() };
         } catch (e) {
           console.warn("[org-isolation] No org context available:", e);
-          return next(params);
+          return next(args);
         }
         return next(args);
       },
@@ -150,7 +150,7 @@ function createPrismaClient() {
           args.where = { ...args.where, organizationId: getOrgId() };
         } catch (e) {
           console.warn("[org-isolation] No org context available:", e);
-          return next(params);
+          return next(args);
         }
         return next(args);
       },
@@ -159,7 +159,7 @@ function createPrismaClient() {
           args.where = { ...args.where, organizationId: getOrgId() };
         } catch (e) {
           console.warn("[org-isolation] No org context available:", e);
-          return next(params);
+          return next(args);
         }
         return next(args);
       },
@@ -168,7 +168,7 @@ function createPrismaClient() {
           args.where = { ...args.where, organizationId: getOrgId() };
         } catch (e) {
           console.warn("[org-isolation] No org context available:", e);
-          return next(params);
+          return next(args);
         }
         return next(args);
       },
@@ -177,7 +177,7 @@ function createPrismaClient() {
           args.where = { ...args.where, organizationId: getOrgId() };
         } catch (e) {
           console.warn("[org-isolation] No org context available:", e);
-          return next(params);
+          return next(args);
         }
         return next(args);
       },
@@ -186,7 +186,7 @@ function createPrismaClient() {
           args.data = { ...args.data, organizationId: getOrgId() };
         } catch (e) {
           console.warn("[org-isolation] No org context available:", e);
-          return next(params);
+          return next(args);
         }
         return next(args);
       },
@@ -195,7 +195,7 @@ function createPrismaClient() {
           args.where = { ...args.where, organizationId: getOrgId() };
         } catch (e) {
           console.warn("[org-isolation] No org context available:", e);
-          return next(params);
+          return next(args);
         }
         return next(args);
       },
@@ -204,7 +204,7 @@ function createPrismaClient() {
           args.where = { ...args.where, organizationId: getOrgId() };
         } catch (e) {
           console.warn("[org-isolation] No org context available:", e);
-          return next(params);
+          return next(args);
         }
         return next(args);
       },
@@ -215,7 +215,7 @@ function createPrismaClient() {
           args.where = { ...args.where, organizationId: getOrgId() };
         } catch (e) {
           console.warn("[org-isolation] No org context available:", e);
-          return next(params);
+          return next(args);
         }
         return next(args);
       },
@@ -224,7 +224,7 @@ function createPrismaClient() {
           args.where = { ...args.where, organizationId: getOrgId() };
         } catch (e) {
           console.warn("[org-isolation] No org context available:", e);
-          return next(params);
+          return next(args);
         }
         return next(args);
       },
@@ -233,7 +233,7 @@ function createPrismaClient() {
           args.where = { ...args.where, organizationId: getOrgId() };
         } catch (e) {
           console.warn("[org-isolation] No org context available:", e);
-          return next(params);
+          return next(args);
         }
         return next(args);
       },
@@ -242,7 +242,7 @@ function createPrismaClient() {
           args.where = { ...args.where, organizationId: getOrgId() };
         } catch (e) {
           console.warn("[org-isolation] No org context available:", e);
-          return next(params);
+          return next(args);
         }
         return next(args);
       },
@@ -251,7 +251,7 @@ function createPrismaClient() {
           args.data = { ...args.data, organizationId: getOrgId() };
         } catch (e) {
           console.warn("[org-isolation] No org context available:", e);
-          return next(params);
+          return next(args);
         }
         return next(args);
       },
@@ -260,7 +260,7 @@ function createPrismaClient() {
           args.where = { ...args.where, organizationId: getOrgId() };
         } catch (e) {
           console.warn("[org-isolation] No org context available:", e);
-          return next(params);
+          return next(args);
         }
         return next(args);
       },
@@ -269,7 +269,7 @@ function createPrismaClient() {
           args.where = { ...args.where, organizationId: getOrgId() };
         } catch (e) {
           console.warn("[org-isolation] No org context available:", e);
-          return next(params);
+          return next(args);
         }
         return next(args);
       },
@@ -280,7 +280,7 @@ function createPrismaClient() {
           args.where = { ...args.where, organizationId: getOrgId() };
         } catch (e) {
           console.warn("[org-isolation] No org context available:", e);
-          return next(params);
+          return next(args);
         }
         return next(args);
       },
@@ -289,7 +289,7 @@ function createPrismaClient() {
           args.where = { ...args.where, organizationId: getOrgId() };
         } catch (e) {
           console.warn("[org-isolation] No org context available:", e);
-          return next(params);
+          return next(args);
         }
         return next(args);
       },
@@ -298,7 +298,7 @@ function createPrismaClient() {
           args.where = { ...args.where, organizationId: getOrgId() };
         } catch (e) {
           console.warn("[org-isolation] No org context available:", e);
-          return next(params);
+          return next(args);
         }
         return next(args);
       },
@@ -307,7 +307,7 @@ function createPrismaClient() {
           args.where = { ...args.where, organizationId: getOrgId() };
         } catch (e) {
           console.warn("[org-isolation] No org context available:", e);
-          return next(params);
+          return next(args);
         }
         return next(args);
       },
@@ -316,7 +316,7 @@ function createPrismaClient() {
           args.data = { ...args.data, organizationId: getOrgId() };
         } catch (e) {
           console.warn("[org-isolation] No org context available:", e);
-          return next(params);
+          return next(args);
         }
         return next(args);
       },
@@ -325,7 +325,7 @@ function createPrismaClient() {
           args.where = { ...args.where, organizationId: getOrgId() };
         } catch (e) {
           console.warn("[org-isolation] No org context available:", e);
-          return next(params);
+          return next(args);
         }
         return next(args);
       },
@@ -334,7 +334,7 @@ function createPrismaClient() {
           args.where = { ...args.where, organizationId: getOrgId() };
         } catch (e) {
           console.warn("[org-isolation] No org context available:", e);
-          return next(params);
+          return next(args);
         }
         return next(args);
       },
@@ -345,7 +345,7 @@ function createPrismaClient() {
           args.where = { ...args.where, organizationId: getOrgId() };
         } catch (e) {
           console.warn("[org-isolation] No org context available:", e);
-          return next(params);
+          return next(args);
         }
         return next(args);
       },
@@ -354,7 +354,7 @@ function createPrismaClient() {
           args.where = { ...args.where, organizationId: getOrgId() };
         } catch (e) {
           console.warn("[org-isolation] No org context available:", e);
-          return next(params);
+          return next(args);
         }
         return next(args);
       },
@@ -363,7 +363,7 @@ function createPrismaClient() {
           args.where = { ...args.where, organizationId: getOrgId() };
         } catch (e) {
           console.warn("[org-isolation] No org context available:", e);
-          return next(params);
+          return next(args);
         }
         return next(args);
       },
@@ -372,7 +372,7 @@ function createPrismaClient() {
           args.where = { ...args.where, organizationId: getOrgId() };
         } catch (e) {
           console.warn("[org-isolation] No org context available:", e);
-          return next(params);
+          return next(args);
         }
         return next(args);
       },
@@ -381,7 +381,7 @@ function createPrismaClient() {
           args.data = { ...args.data, organizationId: getOrgId() };
         } catch (e) {
           console.warn("[org-isolation] No org context available:", e);
-          return next(params);
+          return next(args);
         }
         return next(args);
       },
@@ -390,7 +390,7 @@ function createPrismaClient() {
           args.where = { ...args.where, organizationId: getOrgId() };
         } catch (e) {
           console.warn("[org-isolation] No org context available:", e);
-          return next(params);
+          return next(args);
         }
         return next(args);
       },
@@ -399,7 +399,7 @@ function createPrismaClient() {
           args.where = { ...args.where, organizationId: getOrgId() };
         } catch (e) {
           console.warn("[org-isolation] No org context available:", e);
-          return next(params);
+          return next(args);
         }
         return next(args);
       },
@@ -410,7 +410,7 @@ function createPrismaClient() {
           args.where = { ...args.where, organizationId: getOrgId() };
         } catch (e) {
           console.warn("[org-isolation] No org context available:", e);
-          return next(params);
+          return next(args);
         }
         return next(args);
       },
@@ -419,7 +419,7 @@ function createPrismaClient() {
           args.where = { ...args.where, organizationId: getOrgId() };
         } catch (e) {
           console.warn("[org-isolation] No org context available:", e);
-          return next(params);
+          return next(args);
         }
         return next(args);
       },
@@ -428,7 +428,7 @@ function createPrismaClient() {
           args.where = { ...args.where, organizationId: getOrgId() };
         } catch (e) {
           console.warn("[org-isolation] No org context available:", e);
-          return next(params);
+          return next(args);
         }
         return next(args);
       },
@@ -437,7 +437,7 @@ function createPrismaClient() {
           args.data = { ...args.data, organizationId: getOrgId() };
         } catch (e) {
           console.warn("[org-isolation] No org context available:", e);
-          return next(params);
+          return next(args);
         }
         return next(args);
       },
@@ -446,7 +446,7 @@ function createPrismaClient() {
           args.where = { ...args.where, organizationId: getOrgId() };
         } catch (e) {
           console.warn("[org-isolation] No org context available:", e);
-          return next(params);
+          return next(args);
         }
         return next(args);
       },
@@ -455,7 +455,7 @@ function createPrismaClient() {
           args.where = { ...args.where, organizationId: getOrgId() };
         } catch (e) {
           console.warn("[org-isolation] No org context available:", e);
-          return next(params);
+          return next(args);
         }
         return next(args);
       },
@@ -466,7 +466,7 @@ function createPrismaClient() {
           args.where = { ...args.where, organizationId: getOrgId() };
         } catch (e) {
           console.warn("[org-isolation] No org context available:", e);
-          return next(params);
+          return next(args);
         }
         return next(args);
       },
@@ -475,7 +475,7 @@ function createPrismaClient() {
           args.where = { ...args.where, organizationId: getOrgId() };
         } catch (e) {
           console.warn("[org-isolation] No org context available:", e);
-          return next(params);
+          return next(args);
         }
         return next(args);
       },
@@ -484,7 +484,7 @@ function createPrismaClient() {
           args.where = { ...args.where, organizationId: getOrgId() };
         } catch (e) {
           console.warn("[org-isolation] No org context available:", e);
-          return next(params);
+          return next(args);
         }
         return next(args);
       },
@@ -493,7 +493,7 @@ function createPrismaClient() {
           args.data = { ...args.data, organizationId: getOrgId() };
         } catch (e) {
           console.warn("[org-isolation] No org context available:", e);
-          return next(params);
+          return next(args);
         }
         return next(args);
       },
@@ -502,7 +502,7 @@ function createPrismaClient() {
           args.where = { ...args.where, organizationId: getOrgId() };
         } catch (e) {
           console.warn("[org-isolation] No org context available:", e);
-          return next(params);
+          return next(args);
         }
         return next(args);
       },
@@ -511,7 +511,7 @@ function createPrismaClient() {
           args.where = { ...args.where, organizationId: getOrgId() };
         } catch (e) {
           console.warn("[org-isolation] No org context available:", e);
-          return next(params);
+          return next(args);
         }
         return next(args);
       },
@@ -522,7 +522,7 @@ function createPrismaClient() {
           args.where = { ...args.where, organizationId: getOrgId() };
         } catch (e) {
           console.warn("[org-isolation] No org context available:", e);
-          return next(params);
+          return next(args);
         }
         return next(args);
       },
@@ -531,7 +531,7 @@ function createPrismaClient() {
           args.where = { ...args.where, organizationId: getOrgId() };
         } catch (e) {
           console.warn("[org-isolation] No org context available:", e);
-          return next(params);
+          return next(args);
         }
         return next(args);
       },
@@ -540,7 +540,7 @@ function createPrismaClient() {
           args.where = { ...args.where, organizationId: getOrgId() };
         } catch (e) {
           console.warn("[org-isolation] No org context available:", e);
-          return next(params);
+          return next(args);
         }
         return next(args);
       },
@@ -549,7 +549,7 @@ function createPrismaClient() {
           args.data = { ...args.data, organizationId: getOrgId() };
         } catch (e) {
           console.warn("[org-isolation] No org context available:", e);
-          return next(params);
+          return next(args);
         }
         return next(args);
       },
@@ -558,7 +558,7 @@ function createPrismaClient() {
           args.where = { ...args.where, organizationId: getOrgId() };
         } catch (e) {
           console.warn("[org-isolation] No org context available:", e);
-          return next(params);
+          return next(args);
         }
         return next(args);
       },
@@ -567,7 +567,7 @@ function createPrismaClient() {
           args.where = { ...args.where, organizationId: getOrgId() };
         } catch (e) {
           console.warn("[org-isolation] No org context available:", e);
-          return next(params);
+          return next(args);
         }
         return next(args);
       },
@@ -578,7 +578,7 @@ function createPrismaClient() {
           args.where = { ...args.where, organizationId: getOrgId() };
         } catch (e) {
           console.warn("[org-isolation] No org context available:", e);
-          return next(params);
+          return next(args);
         }
         return next(args);
       },
@@ -587,7 +587,7 @@ function createPrismaClient() {
           args.where = { ...args.where, organizationId: getOrgId() };
         } catch (e) {
           console.warn("[org-isolation] No org context available:", e);
-          return next(params);
+          return next(args);
         }
         return next(args);
       },
@@ -596,7 +596,7 @@ function createPrismaClient() {
           args.data = { ...args.data, organizationId: getOrgId() };
         } catch (e) {
           console.warn("[org-isolation] No org context available:", e);
-          return next(params);
+          return next(args);
         }
         return next(args);
       },
