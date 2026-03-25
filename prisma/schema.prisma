@@ -1,0 +1,338 @@
+// This is your Prisma schema file,
+// learn more about it in the docs: https://pris.ly/d/prisma-schema
+
+generator client {
+  provider = "prisma-client-js"
+}
+
+datasource db {
+  provider = "postgresql"
+  url      = env("DATABASE_URL")
+}
+
+// ============================================================
+// Organization (租户)
+// ============================================================
+model Organization {
+  id        String   @id @default(uuid())
+  name      String   @db.VarChar(255)
+  plan      String   @default("free") @db.VarChar(50)
+  createdAt DateTime @default(now()) @map("created_at")
+
+  users           User[]
+  importJobs      ImportJob[]
+  mappingDictionaries MappingDictionary[]
+  ruleVersions    RuleVersion[]
+  quoteVersions   QuoteVersion[]
+  rules           Rule[]
+  quotes          Quote[]
+  surcharges      Surcharge[]
+  billingRules    BillingRule[]
+  restrictions    Restriction[]
+  auditLogs       AuditLog[]
+
+  @@index([name])
+}
+
+// ============================================================
+// User (成员)
+// ============================================================
+model User {
+  id             String   @id @default(uuid())
+  organizationId String   @map("organization_id")
+  email          String   @unique @db.VarChar(255)
+  passwordHash   String   @map("password_hash")
+  name           String   @db.VarChar(255)
+  role           String   @default("member") @db.VarChar(50) // owner/admin/member/viewer
+  createdAt      DateTime @default(now()) @map("created_at")
+
+  organization   Organization @relation(fields: [organizationId], references: [id])
+  importJobs     ImportJob[]  @relation("UploadedBy")
+  resolvedIssues ParseIssue[]
+  publishedRuleVersions RuleVersion[] @relation("PublishedByRule")
+  publishedQuoteVersions QuoteVersion[] @relation("PublishedByQuote")
+  auditLogs      AuditLog[]
+
+  @@index([organizationId])
+  @@index([email])
+}
+
+// ============================================================
+// ImportJob (导入任务)
+// ============================================================
+model ImportJob {
+  id             String    @id @default(uuid())
+  organizationId String    @map("organization_id")
+  filename       String    @db.VarChar(255)
+  status         String    @default("pending") @db.VarChar(50) // pending/processing/completed/failed
+  upstream       String    @db.VarChar(255)
+  checksum       String    @db.VarChar(64)
+  uploadedById   String?   @map("uploaded_by")
+  errorMessage   String?   @map("error_message") @db.Text
+  createdAt      DateTime  @default(now()) @map("created_at")
+  completedAt    DateTime? @map("completed_at")
+
+  organization   Organization  @relation(fields: [organizationId], references: [id])
+  uploadedBy     User?         @relation("UploadedBy", fields: [uploadedById], references: [id])
+  importBlocks   ImportBlock[]
+
+  @@index([organizationId])
+  @@index([status])
+  @@index([upstream])
+}
+
+// ============================================================
+// ImportBlock (文件切片)
+// ============================================================
+model ImportBlock {
+  id             String   @id @default(uuid())
+  importJobId    String   @map("import_job_id")
+  blockType      String   @map("block_type") @db.VarChar(50) // pricing/restriction/surcharge/notes/clause
+  sheetName      String   @map("sheet_name") @db.VarChar(255)
+  rowRange       String?  @map("row_range") @db.VarChar(50) // e.g. "5-20"
+  rawText        String   @db.Text @map("raw_text")
+  normalizedText String?  @db.Text @map("normalized_text")
+  confidence     Int      @default(0) @map("confidence") // 0-100
+  needsReview    Boolean  @default(false) @map("needs_review")
+
+  importJob   ImportJob    @relation(fields: [importJobId], references: [id], onDelete: Cascade)
+  parseIssues ParseIssue[]
+
+  @@index([importJobId])
+  @@index([needsReview])
+  @@index([blockType])
+}
+
+// ============================================================
+// ParseIssue (置信度问题)
+// ============================================================
+model ParseIssue {
+  id              String    @id @default(uuid())
+  importBlockId   String    @map("import_block_id")
+  issueType       String    @map("issue_type") @db.VarChar(100) // unclear_header/cross_sheet/conflict/missing_field/ambiguous_condition
+  rawSegment      String    @db.Text @map("raw_segment")
+  aiExtraction    Json      @map("ai_extraction")
+  reason          String?   @db.Text
+  suggestedFix    String?   @db.Text @map("suggested_fix")
+  resolvedById    String?   @map("resolved_by")
+  resolvedAt      DateTime? @map("resolved_at")
+
+  importBlock ImportBlock @relation(fields: [importBlockId], references: [id], onDelete: Cascade)
+  resolvedBy User?        @relation(fields: [resolvedById], references: [id])
+
+  @@index([importBlockId])
+  @@index([issueType])
+}
+
+// ============================================================
+// MappingDictionary (标准字典)
+// ============================================================
+model MappingDictionary {
+  id             String   @id @default(uuid())
+  organizationId String   @map("organization_id")
+  category       String   @db.VarChar(50) // country/channel/transport_type/cargo_type/unit/currency/zone
+  normalizedValue String @map("normalized_value") @db.VarChar(255)
+  aliases        Json     @default("[]") // string[] of synonyms
+  createdAt      DateTime @default(now()) @map("created_at")
+
+  organization Organization @relation(fields: [organizationId], references: [id])
+
+  @@index([organizationId])
+  @@index([category])
+  @@index([normalizedValue])
+}
+
+// ============================================================
+// RuleVersion (规则版本)
+// ============================================================
+model RuleVersion {
+  id             String    @id @default(uuid())
+  organizationId String    @map("organization_id")
+  upstream       String    @db.VarChar(255)
+  version        Int       @default(autoincrement())
+  status         String    @default("draft") @db.VarChar(50) // draft/published/archived
+  publishedById  String?   @map("published_by")
+  createdAt      DateTime  @default(now()) @map("created_at")
+  publishedAt    DateTime? @map("published_at")
+
+  organization Organization @relation(fields: [organizationId], references: [id])
+  publishedBy  User?        @relation("PublishedByRule", fields: [publishedById], references: [id])
+  rules        Rule[]
+  quoteVersions QuoteVersion[]
+
+  @@index([organizationId])
+  @@index([status])
+  @@index([upstream])
+}
+
+// ============================================================
+// Rule (规则 DSL)
+// ============================================================
+model Rule {
+  id             String   @id @default(uuid())
+  organizationId String   @map("organization_id")
+  ruleVersionId  String   @map("rule_version_id")
+  category       String   @db.VarChar(50) // surcharge/restriction/compensation/billing
+  type           String?  @db.VarChar(100) // rule type like "偏远"/"超尺寸"/"品类"
+  itemType       Json?    @map("item_type") // string[] of applicable cargo types
+  chargeType     String?  @map("charge_type") @db.VarChar(50) // per_kg/per_item/fixed
+  chargeValue    Decimal? @map("charge_value") @db.Decimal(10, 2)
+  condition      String?  @db.Text
+  description    String?  @db.Text
+  content        String?  @db.Text
+  priority       Int      @default(0) @map("priority")
+  confidence     String   @default("medium") @db.VarChar(20) // high/medium/low
+  source         String   @default("ai") @db.VarChar(20) // ai/manual
+  rawEvidence    String?  @db.Text @map("raw_evidence")
+  createdAt      DateTime @default(now()) @map("created_at")
+
+  organization Organization @relation(fields: [organizationId], references: [id])
+  ruleVersion  RuleVersion  @relation(fields: [ruleVersionId], references: [id])
+
+  @@index([organizationId])
+  @@index([ruleVersionId])
+  @@index([category])
+  @@index([confidence])
+}
+
+// ============================================================
+// QuoteVersion (报价版本)
+// ============================================================
+model QuoteVersion {
+  id             String    @id @default(uuid())
+  organizationId String    @map("organization_id")
+  ruleVersionId  String    @map("rule_version_id")
+  upstream       String    @db.VarChar(255)
+  version        Int       @default(autoincrement())
+  status         String    @default("draft") @db.VarChar(50) // draft/published/archived
+  publishedById  String?   @map("published_by")
+  createdAt      DateTime  @default(now()) @map("created_at")
+  publishedAt    DateTime? @map("published_at")
+
+  organization Organization @relation(fields: [organizationId], references: [id])
+  ruleVersion  RuleVersion  @relation(fields: [ruleVersionId], references: [id])
+  publishedBy  User?        @relation("PublishedByQuote", fields: [publishedById], references: [id])
+  quotes       Quote[]
+  surcharges   Surcharge[]
+  billingRules BillingRule[]
+  restrictions Restriction[]
+
+  @@index([organizationId])
+  @@index([ruleVersionId])
+  @@index([status])
+  @@index([upstream])
+}
+
+// ============================================================
+// Quote (渠道报价)
+// ============================================================
+model Quote {
+  id             String   @id @default(uuid())
+  organizationId String   @map("organization_id")
+  quoteVersionId String   @map("quote_version_id")
+  country        String   @db.VarChar(100)
+  transportType  String   @map("transport_type") @db.VarChar(50)
+  cargoType      String   @map("cargo_type") @db.VarChar(50)
+  channelName    String   @map("channel_name") @db.VarChar(255)
+  zone           String?  @db.VarChar(100)
+  postcodeMin    String?  @map("postcode_min") @db.VarChar(50)
+  postcodeMax    String?  @map("postcode_max") @db.VarChar(50)
+  weightMin      Decimal  @map("weight_min") @db.Decimal(10, 2)
+  weightMax      Decimal? @map("weight_max") @db.Decimal(10, 2)
+  unitPrice      Decimal  @map("unit_price") @db.Decimal(10, 4)
+  timeEstimate   String?   @map("time_estimate") @db.VarChar(100)
+  rawText        String?  @db.Text @map("raw_text")
+
+  organization Organization  @relation(fields: [organizationId], references: [id])
+  quoteVersion QuoteVersion  @relation(fields: [quoteVersionId], references: [id])
+
+  @@index([organizationId])
+  @@index([quoteVersionId])
+  @@index([country])
+  @@index([transportType])
+  @@index([cargoType])
+}
+
+// ============================================================
+// Surcharge (附加费)
+// ============================================================
+model Surcharge {
+  id             String   @id @default(uuid())
+  organizationId String   @map("organization_id")
+  quoteVersionId String   @map("quote_version_id")
+  category       String   @db.VarChar(50) // remote/oversize/overweight/item_type/private_address/other
+  chargeType     String?  @map("charge_type") @db.VarChar(50) // per_kg/per_item/fixed
+  chargeValue    Decimal? @map("charge_value") @db.Decimal(10, 2)
+  condition      String?  @db.Text
+  rawEvidence    String?  @db.Text @map("raw_evidence")
+
+  organization Organization  @relation(fields: [organizationId], references: [id])
+  quoteVersion QuoteVersion  @relation(fields: [quoteVersionId], references: [id])
+
+  @@index([organizationId])
+  @@index([quoteVersionId])
+  @@index([category])
+}
+
+// ============================================================
+// BillingRule (计费规则)
+// ============================================================
+model BillingRule {
+  id             String   @id @default(uuid())
+  organizationId String   @map("organization_id")
+  quoteVersionId String   @map("quote_version_id")
+  ruleType       String   @map("rule_type") @db.VarChar(100)
+  ruleKey        String   @map("rule_key") @db.VarChar(100)
+  ruleValue      String   @map("rule_value") @db.Text
+  rawEvidence    String?  @db.Text @map("raw_evidence")
+
+  organization Organization  @relation(fields: [organizationId], references: [id])
+  quoteVersion QuoteVersion  @relation(fields: [quoteVersionId], references: [id])
+
+  @@index([organizationId])
+  @@index([quoteVersionId])
+}
+
+// ============================================================
+// Restriction (限制规则)
+// ============================================================
+model Restriction {
+  id             String   @id @default(uuid())
+  organizationId String   @map("organization_id")
+  quoteVersionId String   @map("quote_version_id")
+  type           String   @db.VarChar(50) // category/size/area
+  content        String   @db.Text
+  rawEvidence    String?  @db.Text @map("raw_evidence")
+
+  organization Organization  @relation(fields: [organizationId], references: [id])
+  quoteVersion QuoteVersion  @relation(fields: [quoteVersionId], references: [id])
+
+  @@index([organizationId])
+  @@index([quoteVersionId])
+  @@index([type])
+}
+
+// ============================================================
+// AuditLog (操作日志)
+// ============================================================
+model AuditLog {
+  id             String   @id @default(uuid())
+  organizationId String   @map("organization_id")
+  userId         String?  @map("user_id")
+  action         String   @db.VarChar(100)
+  entityType     String?  @map("entity_type") @db.VarChar(100)
+  entityId       String?  @map("entity_id") @db.VarChar(36)
+  before         Json?    @db.JsonB
+  after          Json?    @db.JsonB
+  ip             String?  @db.VarChar(50)
+  createdAt      DateTime @default(now()) @map("created_at")
+
+  organization Organization @relation(fields: [organizationId], references: [id])
+  user         User?        @relation(fields: [userId], references: [id])
+
+  @@index([organizationId])
+  @@index([userId])
+  @@index([action])
+  @@index([entityType])
+  @@index([createdAt])
+}

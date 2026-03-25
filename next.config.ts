@@ -1,7 +1,12 @@
 import type { NextConfig } from "next";
 
 const nextConfig: NextConfig = {
-  serverExternalPackages: ["better-sqlite3"],
+  serverExternalPackages: [
+    "bcryptjs",
+    "jsonwebtoken",
+    "@prisma/client",
+    "prisma",
+  ],
 };
 
 export default nextConfig;
