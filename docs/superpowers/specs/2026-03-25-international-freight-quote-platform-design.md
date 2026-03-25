@@ -158,7 +158,7 @@ QuoteVersion
 | rule_version_id | UUID | 关联版本 |
 | category | ENUM | surcharge/restriction/compensation/billing |
 | type | VARCHAR(100) | 规则类型，如 "偏远"/"超尺寸"/"品类" |
-| item_type | VARCHAR(100) | 品类（品类附加费用） |
+| item_type | JSONB | 适用品类数组，如 ["电池", "液体"]，单品类附加费时为单元素数组 |
 | charge_type | ENUM | per_kg/per_item/fixed |
 | charge_value | DECIMAL(10,2) | 收费金额 |
 | condition | TEXT | 触发条件（自然语言） |
@@ -174,6 +174,7 @@ QuoteVersion
 | 字段 | 类型 | 说明 |
 |---|---|---|
 | id | UUID | 主键 |
+| organization_id | UUID | 关联组织 |
 | rule_version_id | UUID | 关联规则版本 |
 | upstream | VARCHAR(255) | 上游名称 |
 | version | INTEGER | 版本号 |
@@ -185,6 +186,7 @@ QuoteVersion
 | 字段 | 类型 | 说明 |
 |---|---|---|
 | id | UUID | 主键 |
+| organization_id | UUID | 关联组织 |
 | quote_version_id | UUID | 关联版本 |
 | country | VARCHAR(100) | 国家 |
 | transport_type | VARCHAR(50) | 运输类型 |
@@ -203,6 +205,7 @@ QuoteVersion
 | 字段 | 类型 | 说明 |
 |---|---|---|
 | id | UUID | 主键 |
+| organization_id | UUID | 关联组织 |
 | rule_version_id | UUID | 关联版本 |
 | category | ENUM | remote/oversize/overweight/item_type/private_address/other |
 | charge_type | ENUM | per_kg/per_item/fixed |
@@ -214,6 +217,7 @@ QuoteVersion
 | 字段 | 类型 | 说明 |
 |---|---|---|
 | id | UUID | 主键 |
+| organization_id | UUID | 关联组织 |
 | rule_version_id | UUID | 关联版本 |
 | rule_type | VARCHAR(100) | 规则类型 |
 | rule_key | VARCHAR(100) | 规则键名 |
@@ -224,6 +228,7 @@ QuoteVersion
 | 字段 | 类型 | 说明 |
 |---|---|---|
 | id | UUID | 主键 |
+| organization_id | UUID | 关联组织 |
 | rule_version_id | UUID | 关联版本 |
 | type | ENUM | category/size/area |
 | content | TEXT | 限制内容 |
@@ -440,7 +445,13 @@ Step 5: 入库 persist-rules
 1. 加载已发布的 quote_version（关联当前 rule_version）
 2. 查询匹配渠道：country + transport_type + cargo_type + weight_range + postcode_range
 3. 计算基础报价：chargeable_weight × unit_price
-4. 枚举 surcharge 规则，逐条判断是否命中
+4. 枚举 surcharge 规则，逐条判断是否命中：
+   - 偏远附加费（remote）：postcode 匹配偏远分区
+   - 超尺寸附加费（oversize）：L/W/H 任一超阈值
+   - 超重附加费（overweight）：actual_weight 超阈值
+   - 品类附加费（item_type）：item_types[] 与规则的 item_type JSONB 数组交集非空
+   - 私人地址附加费（private_address）：is_private_address=true
+   - 其他（other）
 5. 枚举 billing_rules，应用计费规则
 6. 计算总价，返回可解释结果
 
