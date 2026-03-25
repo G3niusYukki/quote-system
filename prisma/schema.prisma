@@ -30,6 +30,7 @@ model Organization {
   billingRules    BillingRule[]
   restrictions    Restriction[]
   auditLogs       AuditLog[]
+  queryHistories  QueryHistory[]
 
   @@index([name])
 }
@@ -52,6 +53,7 @@ model User {
   publishedRuleVersions RuleVersion[] @relation("PublishedByRule")
   publishedQuoteVersions QuoteVersion[] @relation("PublishedByQuote")
   auditLogs      AuditLog[]
+  queryHistories QueryHistory[]
 
   @@index([organizationId])
   @@index([email])
@@ -310,6 +312,25 @@ model Restriction {
   @@index([organizationId])
   @@index([quoteVersionId])
   @@index([type])
+}
+
+// ============================================================
+// QueryHistory (询价历史)
+// ============================================================
+model QueryHistory {
+  id             String   @id @default(uuid())
+  organizationId String   @map("organization_id")
+  userId         String?  @map("user_id")
+  question       String   @db.Text
+  answer         String?  @db.Text
+  tokensUsed     Int?     @map("tokens_used")
+  createdAt      DateTime @default(now()) @map("created_at")
+
+  organization Organization @relation(fields: [organizationId], references: [id])
+  user         User?        @relation(fields: [userId], references: [id])
+
+  @@index([organizationId])
+  @@index([createdAt])
 }
 
 // ============================================================

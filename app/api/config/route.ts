@@ -26,15 +26,7 @@ function writeConfig(config: Config) {
   fs.writeFileSync(CONFIG_PATH, JSON.stringify(config, null, 2));
 }
 
-export async function GET() {
-  const config = readConfig();
-  return NextResponse.json({
-    hasKey: !!config.dashscopeApiKey,
-    baseUrl: config.baseUrl || "",
-  });
-}
-
-export async function POST(req: NextRequest) {
+async function handleSave(req: NextRequest) {
   try {
     const body = await req.json();
     const { apiKey, baseUrl } = body;
@@ -54,4 +46,26 @@ export async function POST(req: NextRequest) {
   } catch (e) {
     return NextResponse.json({ error: String(e) }, { status: 500 });
   }
+}
+
+export async function GET() {
+  const config = readConfig();
+  let maskedKey = "";
+  if (config.dashscopeApiKey) {
+    const key = config.dashscopeApiKey;
+    maskedKey = key.length > 8 ? `${key.slice(0, 4)}${"*".repeat(key.length - 8)}${key.slice(-4)}` : `${"*".repeat(key.length)}`;
+  }
+  return NextResponse.json({
+    hasKey: !!config.dashscopeApiKey,
+    maskedKey,
+    baseUrl: config.baseUrl || "",
+  });
+}
+
+export async function PUT(req: NextRequest) {
+  return handleSave(req);
+}
+
+export async function POST(req: NextRequest) {
+  return handleSave(req);
 }
