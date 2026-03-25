@@ -1,0 +1,57 @@
+# Dependencies
+node_modules
+npm
+.yarn
+
+# Next.js build outputs
+.next
+out
+
+# Environment files
+.env
+.env.*
+!.env.example
+
+# Git
+.git
+.github
+.gitignore
+
+# Docker
+Dockerfile
+docker-compose*.yml
+.dockerignore
+
+# Documentation
+README.md
+docs
+LICENSE
+
+# Development files
+*.md
+*.log
+npm-debug.log*
+
+# IDE
+.vscode
+.idea
+*.swp
+*.swo
+
+# Testing
+coverage
+
+# Misc
+.DS_Store
+Thumbs.db
+
+# Data files (should be mounted as volume or set via env)
+data
+*.db
+
+# Workers (run as separate process outside container)
+workers
+scripts
+
+# Prisma migrations (already handled by prisma generate in build)
+prisma/migrations
