@@ -3,7 +3,6 @@ import { compare } from "bcryptjs";
 import { z } from "zod";
 import { prisma } from "@/lib/db";
 import { signToken, buildAuthCookie } from "@/lib/auth";
-import { orgContextStorage } from "@/lib/auth-context";
 
 const loginSchema = z.object({
   email: z.string().email("Invalid email address"),

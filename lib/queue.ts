@@ -7,7 +7,7 @@ export const QUEUE_PARSE_EXCEL = "parse-excel";
 // Redis connection config shared between Queue and Worker
 function getRedisConfig() {
   const redisUrl = process.env.REDIS_URL ?? "redis://localhost:6379";
-  return { connection: new Redis(redisUrl, { maxRetriesPerRequest: null }) };
+  return { connection: { url: redisUrl } };
 }
 
 // Queue instances — imported by API routes to enqueue jobs
@@ -31,7 +31,13 @@ export function createParseExcelWorker(processor: Processor): Worker {
 }
 
 // Export a raw Redis client for health-check / ping
+const globalForRedis = globalThis as unknown as { redisClient: Redis | undefined };
 export function getRedisClient(): Redis {
-  const redisUrl = process.env.REDIS_URL ?? "redis://localhost:6379";
-  return new Redis(redisUrl, { maxRetriesPerRequest: null });
+  if (!globalForRedis.redisClient) {
+    globalForRedis.redisClient = new Redis(
+      process.env.REDIS_URL ?? "redis://localhost:6379",
+      { maxRetriesPerRequest: null }
+    );
+  }
+  return globalForRedis.redisClient;
 }

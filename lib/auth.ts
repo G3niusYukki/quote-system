@@ -1,7 +1,13 @@
 import jwt from "jsonwebtoken";
 import type { AuthPayload } from "./auth-context";
 
-const JWT_SECRET = process.env.JWT_SECRET ?? "fallback-dev-secret-change-me";
+let JWT_SECRET = process.env.JWT_SECRET;
+if (!JWT_SECRET) {
+  if (process.env.NODE_ENV === "production") {
+    throw new Error("JWT_SECRET environment variable is required");
+  }
+  JWT_SECRET = "fallback-dev-secret-change-me";
+}
 const JWT_EXPIRES_IN = "7d";
 
 /**
@@ -57,5 +63,15 @@ export function buildAuthCookie(token: string): string {
  * Build Set-Cookie header value for clearing the auth token.
  */
 export function buildClearAuthCookie(): string {
-  return "auth_token=; HttpOnly; Path=/; Max-Age=0; SameSite=Lax";
+  const secure = process.env.NODE_ENV === "production";
+  return [
+    "auth_token=;",
+    "HttpOnly",
+    "Path=/",
+    "Max-Age=0",
+    secure ? "Secure" : "",
+    "SameSite=Lax",
+  ]
+    .filter(Boolean)
+    .join("; ");
 }
