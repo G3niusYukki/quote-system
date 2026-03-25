@@ -121,51 +121,57 @@ export async function POST(req: NextRequest) {
   }
 
   try {
-    const result = await withOrgContext(auth, async () => {
-      // Read file bytes and compute MD5
-      const arrayBuffer = await file.arrayBuffer();
-      const buffer = Buffer.from(arrayBuffer);
-      const checksum = createHash("md5").update(buffer).digest("hex");
+    // Read file bytes and compute MD5 upfront (needed for checksum before any DB access)
+    const arrayBuffer = await file.arrayBuffer();
+    const buffer = Buffer.from(arrayBuffer);
+    const checksum = createHash("md5").update(buffer).digest("hex");
 
-      // Create job record in DB
-      const job = await prisma.importJob.create({
-        data: {
-          organizationId: auth.organizationId,
-          filename: file.name,
-          status: "pending",
-          upstream,
-          checksum,
-          uploadedById: auth.userId,
-        },
+    const result = await withOrgContext(auth, async () => {
+      // DB insert + queue add must be atomic: if queue.add fails, roll back the job
+      const queue = getParseExcelQueue();
+
+      const job = await prisma.$transaction(async (tx) => {
+        const created = await tx.importJob.create({
+          data: {
+            organizationId: auth.organizationId,
+            filename: file.name,
+            status: "pending",
+            upstream,
+            checksum,
+            uploadedById: auth.userId,
+          },
+        });
+
+        // Enqueue BullMQ job inside the same transaction scope
+        // so the DB record is only committed if queue.add succeeds
+        await queue.add(
+          "parse-excel",
+          {
+            jobId: created.id,
+            organizationId: auth.organizationId,
+            upstream,
+          },
+          {
+            attempts: 3,
+            backoff: {
+              type: "exponential" as const,
+              delay: 10_000,
+            },
+            removeOnComplete: { count: 100 },
+            removeOnFail: { count: 500 },
+          }
+        );
+
+        return created;
       });
 
-      // Save file to /data/uploads/{job_id}.xlsx
+      // Write file to disk AFTER the DB tx commits (file write is not DB-rollbackable)
       await ensureUploadsDir();
       const filePath = path.join(UPLOADS_DIR, `${job.id}.xlsx`);
       await writeFile(filePath, buffer);
 
       return job;
     });
-
-    // Enqueue BullMQ job (after org context is done, using raw Prisma for queue)
-    const queue = getParseExcelQueue();
-    await queue.add(
-      "parse-excel",
-      {
-        jobId: result.id,
-        organizationId: auth.organizationId,
-        upstream,
-      },
-      {
-        attempts: 3,
-        backoff: {
-          type: "exponential" as const,
-          delay: 10_000,
-        },
-        removeOnComplete: { count: 100 },
-        removeOnFail: { count: 500 },
-      }
-    );
 
     return NextResponse.json({ job_id: result.id, status: "pending" }, { status: 201 });
   } catch (err) {

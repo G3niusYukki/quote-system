@@ -16,8 +16,7 @@ import { readFile, stat } from "fs/promises";
 import { createHash } from "crypto";
 import { PrismaClient, Prisma } from "@prisma/client";
 import { createParseExcelWorker } from "../lib/queue";
-import { chat } from "../lib/ai/dashscope";
-import { buildPrompt } from "../lib/ai/prompts";
+import { createDashScopeProvider } from "../lib/ai/dashscope";
 import type { AIResult } from "../lib/ai/provider";
 
 // ─── Worker-scoped Prisma (no org-isolation extension) ───────────────────────
@@ -35,6 +34,10 @@ type ParseExcelJob = Job<ParseExcelJobData>;
 // ─── Constants ────────────────────────────────────────────────────────────────
 const UPLOADS_DIR = "/data/uploads";
 const API_TIMEOUT_MS = 120_000; // 2 min
+const CONFIDENCE = {
+  HIGH_THRESHOLD: 80,
+  MEDIUM_THRESHOLD: 50,
+} as const;
 
 // Non-retryable error codes (direct fail, no BullMQ retry)
 const NON_RETRYABLE_CODES = new Set(["CORRUPT_FILE", "MD5_MISMATCH", "PARSE_ASSERTION"]);
@@ -195,45 +198,7 @@ async function getPreviousPublishedRules(orgId: string, upstream: string) {
   return prevVersion ?? null;
 }
 
-// ─── Step 4: Call AI Provider ─────────────────────────────────────────────────
-async function extractWithAI(
-  blockType: AIResult["type"],
-  normalizedText: string,
-  signal: AbortSignal
-): Promise<AIResult> {
-  const apiKey = process.env.DASHSCOPE_API_KEY ?? "";
-  if (!apiKey) throw new Error("DASHSCOPE_API_KEY is not set");
-
-  const prompt = buildPrompt(blockType, normalizedText);
-  const rawResponse = await chat({ apiKey, prompt, signal });
-
-  // Strip markdown code fences if present
-  let jsonStr = rawResponse.trim();
-  if (jsonStr.startsWith("```")) {
-    jsonStr = jsonStr.replace(/^```(?:json)?\s*/i, "").replace(/\s*```$/, "");
-  }
-
-  let parsed: unknown;
-  try {
-    parsed = JSON.parse(jsonStr);
-  } catch {
-    throw new Error(`AI returned invalid JSON: ${jsonStr.slice(0, 200)}`);
-  }
-
-  // Normalize output shape
-  const data = Array.isArray(parsed) ? parsed : [parsed];
-
-  // Extract a representative raw_text snippet (first 500 chars of normalized text)
-  const raw_text = normalizedText.slice(0, 500);
-
-  // Determine the primary type (if AI returns a different type, trust the block type)
-  const type: AIResult["type"] =
-    blockType === "notes" || blockType === "clause" ? blockType : blockType;
-
-  return { type, data: Array.isArray(parsed) ? { items: parsed } as Record<string, unknown> : parsed as Record<string, unknown>, confidence: 0.8, raw_text };
-}
-
-// ─── Step 5: Confidence scoring ───────────────────────────────────────────────
+// ─── Step 4: Confidence scoring ───────────────────────────────────────────────
 interface ConfidenceBreakdown {
   headerClarity: number;   // 0-25
   dataCompleteness: number; // 0-25
@@ -326,8 +291,8 @@ function scoreConfidence(
 type ConfidenceLevel = "high" | "medium" | "low";
 
 function confidenceLevel(total: number): ConfidenceLevel {
-  if (total >= 80) return "high";
-  if (total >= 50) return "medium";
+  if (total >= CONFIDENCE.HIGH_THRESHOLD) return "high";
+  if (total >= CONFIDENCE.MEDIUM_THRESHOLD) return "medium";
   return "low";
 }
 
@@ -448,12 +413,26 @@ async function processParseExcelJob(job: ParseExcelJob): Promise<void> {
     throw Object.assign(new Error(`File not found: ${filePath}`), { code: "CORRUPT_FILE" });
   }
 
+  // Idempotency: if blocks already exist (e.g. this is a retry after partial failure),
+  // delete them first to avoid duplicate blocks. This keeps retry logic clean for V1.
+  const existingBlocks = await workerPrisma.importBlock.findMany({
+    where: { importJobId: jobId },
+    select: { id: true },
+  });
+  if (existingBlocks.length > 0) {
+    console.log(`[parse-excel] Job ${jobId}: ${existingBlocks.length} existing blocks found, deleting before retry`);
+    await workerPrisma.importBlock.deleteMany({ where: { importJobId: jobId } });
+  }
+
   // Step 1: Parse Excel into blocks
   const blocks = await parseExcelIntoBlocks(jobId, filePath);
   console.log(`[parse-excel] Job ${jobId}: ${blocks.length} blocks extracted`);
 
   // Step 2: Get previous published rules for version consistency
   const prevRules = await getPreviousPublishedRules(organizationId, upstream);
+
+  // Step 3: Initialize AI provider (shared across all blocks)
+  const aiProvider = createDashScopeProvider();
 
   // Process each block sequentially to avoid overwhelming the AI API
   const totalBlocks = blocks.length;
@@ -464,18 +443,11 @@ async function processParseExcelJob(job: ParseExcelJob): Promise<void> {
     await job.updateProgress(Math.floor(((i + 1) / totalBlocks) * 100));
 
     try {
-      // Step 2: Normalize
+      // Step 3: Normalize
       const normalized = await normalizeText(organizationId, block.rawText);
 
-      // Step 3: AI extraction (with timeout)
-      const controller = new AbortController();
-      const timeout = setTimeout(() => controller.abort(), API_TIMEOUT_MS);
-      let aiResult: AIResult;
-      try {
-        aiResult = await extractWithAI(block.blockType, normalized.normalizedText, controller.signal);
-      } finally {
-        clearTimeout(timeout);
-      }
+      // Step 4: AI extraction (with timeout handled inside the provider)
+      const aiResult = await aiProvider.extract(block.blockType, normalized.normalizedText);
 
       // Step 4: Confidence scoring
       const breakdown = scoreConfidence(aiResult, prevRules);
@@ -484,7 +456,7 @@ async function processParseExcelJob(job: ParseExcelJob): Promise<void> {
       await persistBlock(jobId, organizationId, block, normalized, aiResult, breakdown);
 
       console.log(
-        `[parse-excel] Block ${i + 1}/${totalBlocks} (${block.blockType}) confidence=${breakdown.total} needsReview=${breakdown.total < 80}`
+        `[parse-excel] Block ${i + 1}/${totalBlocks} (${block.blockType}) confidence=${breakdown.total} needsReview=${breakdown.total < CONFIDENCE.HIGH_THRESHOLD}`
       );
     } catch (err) {
       const error = err as Error & { code?: string };

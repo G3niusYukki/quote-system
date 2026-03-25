@@ -1,52 +1,41 @@
 "use client";
 
 import { useQuery } from "@tanstack/react-query";
-import Link from "next/link";
-import { ImportJobStatusBadge } from "./import-job-status-badge";
 
-interface ImportJob {
+interface ImportJobDetailResponse {
   id: string;
-  filename: string;
   status: string;
-  upstream: string;
-  uploadedBy: { id: string; name: string | null; email: string } | null;
-  errorMessage: string | null;
-  createdAt: string;
-  completedAt: string | null;
+  blocks: Array<{
+    id: string;
+    blockType: string;
+    sheetName: string;
+    rowRange: string | null;
+    confidence: number;
+    needsReview: boolean;
+  }>;
   blockCount: number;
 }
 
-interface ImportJobListResponse {
-  items: ImportJob[];
-  total: number;
-  page: number;
-  pageSize: number;
-  totalPages: number;
-}
-
-async function fetchImportJobs(page = 1, pageSize = 20): Promise<ImportJobListResponse> {
-  const res = await fetch(`/api/import-jobs?page=${page}&pageSize=${pageSize}`);
-  if (!res.ok) throw new Error("Failed to fetch import jobs");
+async function fetchImportJobDetail(jobId: string): Promise<ImportJobDetailResponse> {
+  const res = await fetch(`/api/import-jobs/${jobId}`);
+  if (!res.ok) throw new Error("Failed to fetch job detail");
   return res.json();
 }
 
 export function ImportBlockList({ jobId }: { jobId: string }) {
   const { data, isLoading } = useQuery({
-    queryKey: ["import-blocks", jobId],
-    queryFn: async () => {
-      const res = await fetch(`/api/import-jobs/${jobId}/blocks?pageSize=100`);
-      if (!res.ok) throw new Error("Failed to fetch blocks");
-      return res.json();
-    },
+    // Fetch from job detail endpoint so we have both status (for polling) and blocks
+    queryKey: ["import-job-detail", jobId],
+    queryFn: () => fetchImportJobDetail(jobId),
     refetchInterval: (q) => {
-      // Poll while job is still processing
-      const data = q.state.data?.data;
-      return data ? false : 2000;
+      // Poll while the job is still processing/pending, stop when completed/failed
+      const status = q.state.data?.status;
+      return (status === "processing" || status === "pending") ? 2000 : false;
     },
   });
 
   if (isLoading) return <div className="text-sm text-gray-500">加载中...</div>;
-  if (!data?.items?.length) return <div className="text-sm text-gray-500">暂无切片数据</div>;
+  if (!data?.blocks?.length) return <div className="text-sm text-gray-500">暂无切片数据</div>;
 
   return (
     <div className="overflow-x-auto">
@@ -61,14 +50,7 @@ export function ImportBlockList({ jobId }: { jobId: string }) {
           </tr>
         </thead>
         <tbody className="divide-y">
-          {data.items.map((block: {
-            id: string;
-            sheetName: string;
-            blockType: string;
-            rowRange: string | null;
-            confidence: number;
-            needsReview: boolean;
-          }) => (
+          {data.blocks.map((block) => (
             <tr key={block.id} className="hover:bg-gray-50">
               <td className="py-2 pr-4 font-mono text-xs">{block.sheetName}</td>
               <td className="py-2 pr-4">
