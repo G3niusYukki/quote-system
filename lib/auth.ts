@@ -1,17 +1,24 @@
 import jwt from "jsonwebtoken";
 import type { AuthPayload } from "./auth-context";
 
-const JWT_SECRET = process.env.JWT_SECRET
-  ?? (process.env.NODE_ENV === "production"
-    ? (() => { throw new Error("JWT_SECRET environment variable is required in production"); })()
-    : "fallback-dev-secret-change-me");
+function getJwtSecret(): string {
+  const secret = process.env.JWT_SECRET;
+  if (!secret) {
+    if (process.env.NODE_ENV === "production") {
+      throw new Error("JWT_SECRET environment variable is required in production");
+    }
+    return "fallback-dev-secret-change-me";
+  }
+  return secret;
+}
+
 const JWT_EXPIRES_IN = "7d";
 
 /**
  * Sign a JWT token containing user identity.
  */
 export function signToken(payload: AuthPayload): string {
-  return jwt.sign(payload, JWT_SECRET, { expiresIn: JWT_EXPIRES_IN });
+  return jwt.sign(payload, getJwtSecret(), { expiresIn: JWT_EXPIRES_IN });
 }
 
 /**
@@ -19,7 +26,7 @@ export function signToken(payload: AuthPayload): string {
  * Throws if invalid or expired.
  */
 export function verifyToken(token: string): AuthPayload {
-  return jwt.verify(token, JWT_SECRET) as unknown as AuthPayload;
+  return jwt.verify(token, getJwtSecret()) as unknown as AuthPayload;
 }
 
 /**
