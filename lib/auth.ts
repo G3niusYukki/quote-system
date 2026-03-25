@@ -1,4 +1,5 @@
 import jwt from "jsonwebtoken";
+import * as jose from "jose";
 import type { AuthPayload } from "./auth-context";
 
 function getJwtSecret(): string {
@@ -27,6 +28,22 @@ export function signToken(payload: AuthPayload): string {
  */
 export function verifyToken(token: string): AuthPayload {
   return jwt.verify(token, getJwtSecret()) as unknown as AuthPayload;
+}
+
+/**
+ * Verify and decode a JWT token (Edge Runtime compatible — uses Web Crypto API).
+ * Throws if invalid or expired.
+ */
+export async function verifyTokenEdge(token: string): Promise<AuthPayload> {
+  const secret = getJwtSecret();
+  const key = new TextEncoder().encode(secret);
+  const { payload } = await jose.jwtVerify(token, key);
+  return {
+    userId: payload.userId as string,
+    organizationId: payload.organizationId as string,
+    role: payload.role as string,
+    email: payload.email as string,
+  };
 }
 
 /**
