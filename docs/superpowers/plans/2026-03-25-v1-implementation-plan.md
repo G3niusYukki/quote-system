@@ -42,6 +42,7 @@
 ### 1.5 认证系统
 
 - Create: `app/api/auth/login/route.ts` — 邮箱密码登录，返回 JWT
+- Create: `app/api/auth/register/route.ts` — 注册（创建第一个 Organization + Owner 账号）；校验邮箱唯一 → 创建 Organization → 创建 User（role=owner）→ 返回 JWT
 - Create: `app/api/auth/logout/route.ts`
 - Create: `middleware.ts` — JWT 验证中间件，保护所有非公开路由
 - Create: `lib/auth-context.ts` — 当前用户上下文（organization_id, role）
@@ -49,6 +50,16 @@
 ### 1.6 多租户行级隔离
 
 - Create: `lib/org.ts` — Prisma middleware，强制所有查询带上 `organization_id`
+  ```typescript
+  // 伪代码：所有非 User 查询自动注入 orgId
+  prisma.$use(async (params, next) => {
+    if (params.model && params.model !== 'User' && params.action !== 'findMany' && params.action !== 'create') return next(params);
+    const orgId = getCurrentOrgId(); // 从 AsyncLocalStorage / context 获取
+    if (!orgId) throw new Error('organization_id required');
+    params.args.where = { ...params.args.where, organization_id: orgId };
+    return next(params);
+  });
+  ```
 - Modify: 所有 API routes，在 handler 入口处提取 `req.auth.orgId` 并注入查询上下文
 
 ---
@@ -57,7 +68,7 @@
 
 ### 2.1 导入任务 API
 
-- Create: `app/api/import-jobs/route.ts` POST — 文件上传，生成 job_id，状态=pending，BullMQ 入队
+- Create: `app/api/import-jobs/route.ts` POST — 验证文件格式（xlsx/xls）→ 生成 job_id，存入 PostgreSQL（status=pending）→ **保存文件到 `/data/uploads/{job_id}.xlsx`** → BullMQ 入队 parse-excel → 返回 `{ job_id }`（前端开始轮询）
 - Create: `app/api/import-jobs/route.ts` GET — 分页列表（按 organization 过滤）
 - Create: `app/api/import-jobs/[id]/route.ts` GET — 任务详情
 - Create: `app/api/import-jobs/[id]/blocks/route.ts` GET — 获取任务关联的所有切片（分页 + 筛选 needs_review）
@@ -143,12 +154,16 @@
 ### 5.1 报价计算 API
 
 - Create: `app/api/quotes/calculate/route.ts` POST
+  - 接收：country, transport_type, cargo_type, actual_weight, volume_weight, dimensions{L/W/H}, postcode, item_types[], is_private_address
+  - 计费重：`chargeable_weight = max(actual_weight, volume_weight)`（体积重公式 `(L×W×H)/6000` 由前端或 billing_rules 预先计算后传入）
   - 加载已发布 quote_version
   - 查询匹配渠道，计算基础报价
   - 枚举 surcharge 规则（6 类含 private_address），逐条判断命中
   - 枚举 billing_rules 应用计费规则
   - 返回可解释结构（基础报价 + surcharge 明细含 raw_evidence + unmatched 规则含原因）
 - Modify: 远程分区判断逻辑（从 `data/remote-zones.json` 文件迁移到数据库 `surcharges` 表 `category=remote` 行，源文件路径：`/Users/peterzhang/quote-system/data/remote-zones.json`）
+
+**BullMQ Worker 运行模式：独立 Node.js 进程**（非 Next.js server 内嵌），通过 `node workers/parse-excel.ts` 启动，与 Next.js 解耦，支持独立扩缩容。
 
 ### 5.2 报价前端
 
