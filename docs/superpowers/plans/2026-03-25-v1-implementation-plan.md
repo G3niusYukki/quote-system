@@ -180,12 +180,12 @@
 - Create: `app/api/rule-versions/route.ts` GET/POST
 - Create: `app/api/rule-versions/[id]/route.ts` GET/PUT
 - Create: `app/api/rule-versions/[id]/publish/route.ts` POST
-- Create: `app/api/rule-versions/[id]/rollback/route.ts` POST
+- Create: `app/api/rule-versions/[id]/rollback/route.ts` POST — 回滚（无 body，隐式回滚到上一个已发布版本；若无历史版本则返回 400）
 - Create: `app/api/rule-versions/[id]/diff/route.ts` GET — 与指定版本对比（added/removed/changed/unchanged）
 
 ### 6.2 报价版本 API
 
-- Create: `app/api/quote-versions/route.ts` GET/POST
+- Create: `app/api/quote-versions/route.ts` GET/POST — **POST 时需指定关联的 rule_version_id，可选指定 upstream；QuoteVersion 创建后处于 draft 状态，需手动发布**
 - Create: `app/api/quote-versions/[id]/route.ts` GET — 版本详情；**PUT（可选）**：draft 状态下可编辑基本信息（关联 rule_version_id）
 - Create: `app/api/quote-versions/[id]/publish/route.ts` POST
 - Create: `app/api/quote-versions/[id]/rollback/route.ts` POST
@@ -275,6 +275,7 @@
   - 插入 PostgreSQL（新 organization = "Default"）
   - 规则迁移到 rule_version（version=1, status=published）
   - 报价迁移到 quote_version（version=1, status=published）
+  - **将 `data/remote-zones.json` 中的偏远邮编段迁移为 `surcharges` 表中 `category=remote` 的记录**
 - Run: 迁移脚本并验证数据完整性
 
 ### 10.2 系统状态检查
