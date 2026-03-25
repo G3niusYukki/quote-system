@@ -154,6 +154,7 @@ QuoteVersion
 | 字段 | 类型 | 说明 |
 |---|---|---|
 | id | UUID | 主键 |
+| organization_id | UUID | 关联组织（通过 rule_version 继承，直接存冗余字段用于行级安全过滤） |
 | rule_version_id | UUID | 关联版本 |
 | category | ENUM | surcharge/restriction/compensation/billing |
 | type | VARCHAR(100) | 规则类型，如 "偏远"/"超尺寸"/"品类" |
@@ -414,6 +415,16 @@ Step 5: 入库 persist-rules
 | 条件明确性 | 条件无歧义 | 跨 sheet 引用，语义含糊 |
 | 数值合理性 | 单价/重量在合理范围 | 明显异常 |
 | 版本一致性 | 与上一版本无冲突 | 与旧版本冲突 |
+
+### 审核 → 规则晋升流程
+
+当用户通过 `POST /api/review/issues/:id/resolve` 审核一项 `parse_issue` 后：
+
+1. 更新 `parse_issues.resolved_by` 和 `resolved_at`
+2. 根据审核结果（接受 AI 提取 / 修正字段值 / 标记无法解析）：
+   - **接受或修正**：将规则写入 `rules` 表（source=manual，confidence=high），同时更新对应 `import_block.confidence=100`，`needs_review=false`
+   - **无法解析**：标记 `parse_issues` 为无法解析，该块数据不进入规则 DSL
+3. 关联的 `rule_version` 保持 draft 状态，直到发布时整批确认
 
 ---
 
