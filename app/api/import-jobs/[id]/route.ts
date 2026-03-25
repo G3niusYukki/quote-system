@@ -79,3 +79,43 @@ export async function GET(
     return NextResponse.json({ error: "Internal server error" }, { status: 500 });
   }
 }
+
+// DELETE /api/import-jobs/[id] — Delete an import job and its blocks
+export async function DELETE(
+  req: NextRequest,
+  { params }: { params: Promise<{ id: string }> }
+) {
+  const auth = getRequestAuth(req);
+  if (!auth) {
+    return NextResponse.json({ error: "Unauthorized" }, { status: 401 });
+  }
+
+  const { id } = await params;
+
+  try {
+    await withOrgContext(auth, async () => {
+      // Get all block IDs first
+      const blocks = await prisma.importBlock.findMany({
+        where: { importJobId: id },
+        select: { id: true },
+      });
+      const blockIds = blocks.map((b) => b.id);
+
+      // Delete parse issues (cascade from ImportBlock handles this, but explicit is safe)
+      if (blockIds.length > 0) {
+        await prisma.parseIssue.deleteMany({ where: { importBlockId: { in: blockIds } } });
+      }
+      await prisma.importBlock.deleteMany({ where: { importJobId: id } });
+      await prisma.importJob.delete({ where: { id } });
+    });
+
+    return new NextResponse(null, { status: 204 });
+  } catch (err: unknown) {
+    const msg = err instanceof Error ? err.message : String(err);
+    if (msg.includes("Record to delete does not exist")) {
+      return NextResponse.json({ error: "Import job not found" }, { status: 404 });
+    }
+    console.error("[DELETE /api/import-jobs/[id]]", err);
+    return NextResponse.json({ error: "Internal server error" }, { status: 500 });
+  }
+}

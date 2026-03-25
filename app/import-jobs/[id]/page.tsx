@@ -70,6 +70,16 @@ export default function ImportJobDetailPage({ params }: { params: Promise<{ id: 
     },
   });
 
+  const deleteMutation = useMutation({
+    mutationFn: async () => {
+      const res = await fetch(`/api/import-jobs/${id}`, { method: "DELETE" });
+      if (!res.ok) throw new Error("Delete failed");
+    },
+    onSuccess: () => {
+      window.location.href = "/import-jobs";
+    },
+  });
+
   if (isLoading) {
     return (
       <div className="flex items-center justify-center h-64 text-gray-500">
@@ -123,6 +133,15 @@ export default function ImportJobDetailPage({ params }: { params: Promise<{ id: 
               {retryMutation.isPending ? "重试中..." : "重试任务"}
             </button>
           )}
+          <button
+            onClick={() => {
+              if (confirm("确定删除此导入任务？")) deleteMutation.mutate();
+            }}
+            disabled={deleteMutation.isPending}
+            className="px-4 py-2 bg-white text-red-600 text-sm font-medium border border-red-300 rounded-lg hover:bg-red-50 disabled:opacity-50 transition-colors"
+          >
+            {deleteMutation.isPending ? "删除中..." : "删除"}
+          </button>
           <Link
             href="/import-jobs"
             className="px-4 py-2 bg-white text-gray-700 text-sm font-medium border border-gray-300 rounded-lg hover:bg-gray-50 transition-colors"
