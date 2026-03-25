@@ -22,6 +22,8 @@ ENV NODE_ENV=production
 # 不以 root 运行
 RUN addgroup --system --gid 1001 nodejs
 RUN adduser --system --uid 1001 nextjs
+# Upload directory for Excel files
+RUN mkdir -p /data/uploads && chown nextjs:nodejs /data/uploads
 USER nextjs
 
 # 复制构建产物和必要文件
@@ -34,5 +36,6 @@ EXPOSE 3000
 
 ENV PORT=3000
 ENV HOSTNAME="0.0.0.0"
+ENV UPLOADS_DIR=/data/uploads
 
 CMD ["node", "server.js"]

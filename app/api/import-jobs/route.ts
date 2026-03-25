@@ -9,8 +9,8 @@ import { getRequestAuth, withOrgContext } from "@/lib/request-auth";
 import { getParseExcelQueue } from "@/lib/queue";
 import { requirePermission } from "@/lib/rbac";
 
-// Ensure /data/uploads exists
-const UPLOADS_DIR = "/data/uploads";
+// Upload directory: env var for Docker (/data/uploads), default to local ./data/uploads
+const UPLOADS_DIR = process.env.UPLOADS_DIR ?? path.join(process.cwd(), "data", "uploads");
 
 async function ensureUploadsDir() {
   if (!existsSync(UPLOADS_DIR)) {

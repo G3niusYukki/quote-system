@@ -21,7 +21,7 @@ interface ImportJob {
   filename: string;
   createdAt: string;
   uploadedBy: { name: string };
-  _count: { importBlocks: number };
+  blockCount: number;
 }
 
 function formatDate(iso: string) {
@@ -195,7 +195,7 @@ export default function DashboardPage() {
                       </Badge>
                     </div>
                     <p className="text-xs text-gray-400 mt-0.5">
-                      {job.uploadedBy?.name ?? "未知"} · {formatDate(job.createdAt)} · {job._count.importBlocks} 个数据块
+                      {job.uploadedBy?.name ?? "未知"} · {formatDate(job.createdAt)} · {job.blockCount} 个数据块
                     </p>
                   </div>
                   <svg className="w-4 h-4 text-gray-300 group-hover:text-gray-500 shrink-0 ml-4" fill="none" stroke="currentColor" viewBox="0 0 24 24">

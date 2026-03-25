@@ -18,6 +18,7 @@ import { PrismaClient, Prisma } from "@prisma/client";
 import { createParseExcelWorker } from "../lib/queue";
 import { createDashScopeProvider } from "../lib/ai/dashscope";
 import type { AIResult } from "../lib/ai/provider";
+import path from "path";
 
 // ─── Worker-scoped Prisma (no org-isolation extension) ───────────────────────
 const workerPrisma = new PrismaClient();
@@ -32,7 +33,8 @@ interface ParseExcelJobData {
 type ParseExcelJob = Job<ParseExcelJobData>;
 
 // ─── Constants ────────────────────────────────────────────────────────────────
-const UPLOADS_DIR = "/data/uploads";
+// Upload directory: env var for Docker (/data/uploads), default to local ./data/uploads
+const UPLOADS_DIR = process.env.UPLOADS_DIR ?? path.join(process.cwd(), "data", "uploads");
 const API_TIMEOUT_MS = 120_000; // 2 min
 const CONFIDENCE = {
   HIGH_THRESHOLD: 80,

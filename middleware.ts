@@ -8,6 +8,7 @@ const PUBLIC_PATHS = [
   "/api/auth/login",
   "/api/auth/register",
   "/api/auth/logout",
+  "/api/status",
 ];
 
 // Match patterns — Next.js middleware uses route matchers
