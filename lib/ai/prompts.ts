@@ -11,9 +11,9 @@ const SYSTEM_PROMPT = `你是一个专业的物流报价表解析助手。你的
 function buildPricingPrompt(rawText: string): string {
   return `${SYSTEM_PROMPT}
 
-从以下pricing区块文本中提取报价信息，输出JSON对象：
+从以下pricing区块文本中提取报价信息，输出JSON数组（每个数据行一条记录）：
 
-**必须字段：**
+**每条记录字段：**
 - country: 国家（如：美国、加拿大、澳大利亚）
 - transport_type: 运输类型（海运、空运、铁运、卡车）
 - cargo_type: 货物类型（普货、敏感、特货、纯普货等）
@@ -32,20 +32,22 @@ function buildPricingPrompt(rawText: string): string {
 ${rawText}
 
 输出示例：
-{
-  "country": "美国",
-  "transport_type": "海运",
-  "cargo_type": "纯普货",
-  "channel_name": "美国海运快船-纯普货",
-  "zone": "美国西岸",
-  "postcode_min": "80000",
-  "postcode_max": "99999",
-  "weight_min": 12,
-  "weight_max": 50,
-  "unit_price": 8.5,
-  "time_estimate": "12-15天",
-  "currency": "CNY"
-}`;
+[
+  {
+    "country": "美国",
+    "transport_type": "海运",
+    "cargo_type": "纯普货",
+    "channel_name": "美国海运快船-纯普货",
+    "zone": "美国西岸",
+    "postcode_min": "80000",
+    "postcode_max": "99999",
+    "weight_min": 12,
+    "weight_max": 50,
+    "unit_price": 8.5,
+    "time_estimate": "12-15天",
+    "currency": "CNY"
+  }
+]`;
 }
 
 function buildSurchargePrompt(rawText: string): string {

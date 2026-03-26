@@ -5,14 +5,11 @@ const CONFIG_PATH = process.env.NODE_ENV === "production"
   : `${process.cwd()}/data/config.json`;
 
 function getConfig(): { apiKey: string | null; baseUrl: string | null } {
-  console.log("[dashscope] getConfig() CONFIG_PATH:", CONFIG_PATH);
   try {
     // eslint-disable-next-line @typescript-eslint/no-require-imports
     const fs = require("fs") as typeof import("fs");
-    console.log("[dashscope] fs module loaded, exists:", fs.existsSync(CONFIG_PATH));
     if (fs.existsSync(CONFIG_PATH)) {
       const config = JSON.parse(fs.readFileSync(CONFIG_PATH, "utf-8"));
-      console.log("[dashscope] config loaded:", { apiKey: config.dashscopeApiKey?.slice(0, 8) + "..." });
       return {
         apiKey: (config.dashscopeApiKey as string | undefined) ?? null,
         baseUrl: (config.baseUrl as string | undefined) ?? null,
@@ -43,7 +40,7 @@ export async function chat(options: ChatOptions): Promise<string> {
       model: MODEL,
       messages: [{ role: "user", content: prompt }],
       temperature: 0.3,
-      max_tokens: 2000,
+      max_tokens: 4000,
     }),
     signal,
   });
@@ -72,9 +69,6 @@ export function createDashScopeProvider(): AIProvider {
       const envKey = process.env.DASHSCOPE_API_KEY;
       const { apiKey: configKey, baseUrl: configBaseUrl } = getConfig();
       const apiKey = configKey ?? envKey;
-      console.log("[dashscope] extract: configKey=", configKey ? configKey.slice(0, 8) + "..." : "none",
-        "envKey=", envKey ? envKey.slice(0, 8) + "..." : "none",
-        "final apiKey=", apiKey ? apiKey.slice(0, 8) + "..." : "NONE!");
       if (!apiKey) throw new Error("No DASHSCOPE_API_KEY found (env or data/config.json)");
 
       const prompt = buildPrompt(blockType, rawText);
@@ -93,11 +87,39 @@ export function createDashScopeProvider(): AIProvider {
         jsonStr = jsonStr.replace(/^```(?:json)?\s*/i, "").replace(/\s*```$/, "");
       }
 
+      // Try standard JSON parse first
       let parsed: unknown;
       try {
         parsed = JSON.parse(jsonStr);
       } catch {
-        throw new Error(`AI returned invalid JSON: ${jsonStr.slice(0, 200)}`);
+        // Fallback: try to extract JSON array/object from potentially truncated response
+        const jsonStart = jsonStr.indexOf("[") !== -1 ? jsonStr.indexOf("[") : jsonStr.indexOf("{");
+        if (jsonStart !== -1) {
+          const candidate = jsonStr.slice(jsonStart);
+          // Try to find the matching closing bracket by counting nesting level
+          let end = candidate.length;
+          let depth = 0;
+          let inString = false;
+          for (let i = 0; i < candidate.length; i++) {
+            const ch = candidate[i];
+            if (ch === '"' && candidate[i - 1] !== "\\") inString = !inString;
+            if (!inString) {
+              if (ch === "[") depth++;
+              else if (ch === "]") {
+                depth--;
+                if (depth === 0) { end = i + 1; break; }
+              }
+            }
+          }
+          const truncated = candidate.slice(0, end);
+          try {
+            parsed = JSON.parse(truncated);
+          } catch {
+            throw new Error(`AI returned invalid JSON: ${candidate.slice(0, 300)}`);
+          }
+        } else {
+          throw new Error(`AI returned invalid JSON: ${jsonStr.slice(0, 200)}`);
+        }
       }
 
       // Normalize output shape
