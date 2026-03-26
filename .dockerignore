@@ -45,9 +45,13 @@ coverage
 .DS_Store
 Thumbs.db
 
-# Data files (should be mounted as volume or set via env)
-data
-*.db
+# Data files
+# Keep directory structure, exclude sensitive/dev files
+data/config.json
+data/*.db
+data/*.db-shm
+data/*.db-wal
+data/uploads
 
 # Workers (run as separate process outside container)
 workers
