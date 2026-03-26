@@ -32,6 +32,9 @@ COPY --from=builder --chown=nextjs:nodejs /app/.next/static ./.next/static
 COPY --from=builder --chown=nextjs:nodejs /app/prisma ./prisma
 COPY --from=builder --chown=nextjs:nodejs /app/public ./public
 
+# data 目录（config.json 在 Docker 里通过环境变量或挂载设置）
+COPY --from=builder --chown=nextjs:nodejs /app/data ./data
+
 EXPOSE 3000
 
 ENV PORT=3000

@@ -1,5 +1,26 @@
 const DEFAULT_BASE_URL = "https://dashscope.aliyuncs.com/compatible-mode/v1/chat/completions";
 const MODEL = "qwen-plus";
+const CONFIG_PATH = process.env.NODE_ENV === "production"
+  ? "/app/data/config.json"
+  : `${process.cwd()}/data/config.json`;
+
+function getConfig(): { apiKey: string | null; baseUrl: string | null } {
+  console.log("[dashscope] getConfig() CONFIG_PATH:", CONFIG_PATH);
+  try {
+    // eslint-disable-next-line @typescript-eslint/no-require-imports
+    const fs = require("fs") as typeof import("fs");
+    console.log("[dashscope] fs module loaded, exists:", fs.existsSync(CONFIG_PATH));
+    if (fs.existsSync(CONFIG_PATH)) {
+      const config = JSON.parse(fs.readFileSync(CONFIG_PATH, "utf-8"));
+      console.log("[dashscope] config loaded:", { apiKey: config.dashscopeApiKey?.slice(0, 8) + "..." });
+      return {
+        apiKey: (config.dashscopeApiKey as string | undefined) ?? null,
+        baseUrl: (config.baseUrl as string | undefined) ?? null,
+      };
+    }
+  } catch {}
+  return { apiKey: null, baseUrl: null };
+}
 
 export interface ChatOptions {
   apiKey: string;
@@ -48,15 +69,20 @@ import type { AIProvider, AIResult } from "./provider";
 export function createDashScopeProvider(): AIProvider {
   return {
     async extract(blockType: AIResult["type"], rawText: string): Promise<AIResult> {
-      const apiKey = process.env.DASHSCOPE_API_KEY ?? "";
-      if (!apiKey) throw new Error("DASHSCOPE_API_KEY is not set");
+      const envKey = process.env.DASHSCOPE_API_KEY;
+      const { apiKey: configKey, baseUrl: configBaseUrl } = getConfig();
+      const apiKey = configKey ?? envKey;
+      console.log("[dashscope] extract: configKey=", configKey ? configKey.slice(0, 8) + "..." : "none",
+        "envKey=", envKey ? envKey.slice(0, 8) + "..." : "none",
+        "final apiKey=", apiKey ? apiKey.slice(0, 8) + "..." : "NONE!");
+      if (!apiKey) throw new Error("No DASHSCOPE_API_KEY found (env or data/config.json)");
 
       const prompt = buildPrompt(blockType, rawText);
       const controller = new AbortController();
       const timeout = setTimeout(() => controller.abort(), 120_000);
       let rawResponse: string;
       try {
-        rawResponse = await chat({ apiKey, prompt, signal: controller.signal });
+        rawResponse = await chat({ apiKey, prompt, baseUrl: configBaseUrl ?? undefined, signal: controller.signal });
       } finally {
         clearTimeout(timeout);
       }
