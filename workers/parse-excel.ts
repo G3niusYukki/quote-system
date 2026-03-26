@@ -215,8 +215,10 @@ function scoreConfidence(
   prevRules: Awaited<ReturnType<typeof getPreviousPublishedRules>> | null
 ): ConfidenceBreakdown {
   const data = aiResult.data;
-  const isArray = Array.isArray(data);
-  const firstItem = isArray ? (data as unknown[])[0] : data;
+  // Handle both { items: [...] } wrapper and raw [...]
+  const rawItems = Array.isArray(data) ? data : (data as Record<string, unknown>).items;
+  const isArray = Array.isArray(rawItems);
+  const firstItem = isArray ? rawItems[0] : data;
 
   // Header clarity: block has enough fields populated
   let headerClarity = 25;
@@ -354,7 +356,10 @@ async function persistBlock(
       });
     }
 
-    const items: unknown[] = Array.isArray(aiResult.data) ? aiResult.data : [aiResult.data];
+    const rawItems: unknown = Array.isArray(aiResult.data)
+      ? aiResult.data
+      : (aiResult.data as Record<string, unknown>).items ?? aiResult.data;
+    const items: unknown[] = Array.isArray(rawItems) ? rawItems : [rawItems];
     for (const item of items) {
       if (!item || typeof item !== "object") continue;
       const obj = item as Record<string, unknown>;
