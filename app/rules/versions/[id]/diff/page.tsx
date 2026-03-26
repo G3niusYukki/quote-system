@@ -101,6 +101,8 @@ export default function RuleVersionDiffPage({ params }: { params: Promise<{ id: 
         <div className="max-w-5xl mx-auto px-6 py-4 flex items-center justify-between">
           <div>
             <div className="flex items-center gap-2">
+              <Link href="/dashboard" className="text-gray-400 hover:text-gray-600 text-sm">🏠 首页</Link>
+              <span className="text-gray-300">/</span>
               <Link href="/rules/versions" className="text-gray-400 hover:text-gray-600 text-sm">规则版本</Link>
               <span className="text-gray-300">/</span>
               <Link href={`/rules/versions/${id}`} className="text-gray-400 hover:text-gray-600 text-sm">

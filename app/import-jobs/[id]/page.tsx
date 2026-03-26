@@ -105,6 +105,14 @@ export default function ImportJobDetailPage({ params }: { params: Promise<{ id: 
       {/* Header */}
       <div className="flex items-start justify-between">
         <div>
+          {/* Breadcrumb */}
+          <div className="flex items-center gap-2 text-sm text-gray-400 mb-2">
+            <Link href="/dashboard" className="hover:text-gray-600">🏠 首页</Link>
+            <span>/</span>
+            <Link href="/import-jobs" className="hover:text-blue-600">导入任务</Link>
+            <span>/</span>
+            <span className="text-gray-500">{job.filename}</span>
+          </div>
           <div className="flex items-center gap-3 mb-1">
             <h1 className="text-2xl font-bold text-gray-900">{job.filename}</h1>
             <ImportJobStatusBadge status={job.status as "pending" | "processing" | "completed" | "failed"} />

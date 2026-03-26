@@ -105,6 +105,8 @@ export default function QuoteVersionDetailPage({ params }: { params: Promise<{ i
         <div className="max-w-5xl mx-auto px-6 py-4 flex items-center justify-between">
           <div>
             <div className="flex items-center gap-2">
+              <Link href="/dashboard" className="text-gray-400 hover:text-gray-600 text-sm">🏠 首页</Link>
+              <span className="text-gray-300">/</span>
               <Link href="/quotes/versions" className="text-gray-400 hover:text-gray-600 text-sm">报价版本</Link>
               <span className="text-gray-300">/</span>
               <h1 className="text-xl font-bold text-gray-900">

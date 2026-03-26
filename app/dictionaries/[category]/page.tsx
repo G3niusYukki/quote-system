@@ -113,9 +113,9 @@ export default function CategoryDictionariesPage() {
         <div className="max-w-6xl mx-auto px-6 py-4 flex items-center justify-between">
           <div>
             <div className="flex items-center gap-2 text-sm text-gray-500 mb-0.5">
-              <Link href="/dictionaries" className="hover:text-blue-600 transition-colors">
-                字典管理
-              </Link>
+              <Link href="/dashboard" className="hover:text-gray-600 transition-colors">🏠 首页</Link>
+              <span>/</span>
+              <Link href="/dictionaries" className="hover:text-blue-600 transition-colors">字典管理</Link>
               <span>/</span>
               <span>{label}</span>
             </div>
