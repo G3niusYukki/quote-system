@@ -344,7 +344,7 @@ async function persistBlock(
     },
   });
 
-  // For high-confidence pricing/surcharge blocks, create Rule records
+  // For high-confidence pricing/surcharge blocks, create Rule + Quote/Surcharge records
   if (level === "high" && (block.blockType === "pricing" || block.blockType === "surcharge")) {
     // Get or create a draft RuleVersion for this import
     let ruleVersion = await workerPrisma.ruleVersion.findFirst({
@@ -356,10 +356,26 @@ async function persistBlock(
       });
     }
 
+    // Also ensure a corresponding QuoteVersion exists (links RuleVersion → QuoteVersion)
+    let quoteVersion = await workerPrisma.quoteVersion.findFirst({
+      where: { ruleVersionId: ruleVersion.id },
+    });
+    if (!quoteVersion) {
+      quoteVersion = await workerPrisma.quoteVersion.create({
+        data: {
+          organizationId: orgId,
+          ruleVersionId: ruleVersion.id,
+          upstream: block.sheetName,
+          status: "draft",
+        },
+      });
+    }
+
     const rawItems: unknown = Array.isArray(aiResult.data)
       ? aiResult.data
       : (aiResult.data as Record<string, unknown>).items ?? aiResult.data;
     const items: unknown[] = Array.isArray(rawItems) ? rawItems : [rawItems];
+
     for (const item of items) {
       if (!item || typeof item !== "object") continue;
       const obj = item as Record<string, unknown>;
@@ -378,6 +394,46 @@ async function persistBlock(
       };
 
       await workerPrisma.rule.create({ data: ruleData });
+
+      // Also create Quote or Surcharge record for the calculation engine
+      if (block.blockType === "pricing") {
+        await workerPrisma.quote.create({
+          data: {
+            organizationId: orgId,
+            quoteVersionId: quoteVersion.id,
+            country: (obj.country as string | undefined) ?? "",
+            transportType: (obj.transport_type as string | undefined) ?? "",
+            cargoType: (obj.cargo_type as string | undefined) ?? "",
+            channelName: (obj.channel_name as string | undefined) ?? block.sheetName,
+            zone: (obj.zone as string | undefined) ?? null,
+            postcodeMin: (obj.postcode_min as string | undefined) ?? null,
+            postcodeMax: (obj.postcode_max as string | undefined) ?? null,
+            weightMin: Number(obj.weight_min ?? 0) || 0,
+            weightMax: obj.weight_max != null ? Number(obj.weight_max) : null,
+            unitPrice: Number(obj.unit_price ?? 0) || 0,
+            timeEstimate: (obj.time_estimate as string | undefined) ?? null,
+            rawText: block.rawText.slice(0, 500),
+          },
+        });
+      } else {
+        // surcharge → Surcharge record
+        const chargeTypeMap: Record<string, string> = {
+          per_kg: "per_kg",
+          per_item: "per_item",
+          fixed: "fixed",
+        };
+        await workerPrisma.surcharge.create({
+          data: {
+            organizationId: orgId,
+            quoteVersionId: quoteVersion.id,
+            category: (obj.category as string | undefined) ?? "other",
+            chargeType: chargeTypeMap[(obj.charge_type as string | undefined) ?? ""] ?? "fixed",
+            chargeValue: obj.charge_value != null ? Number(obj.charge_value) : null,
+            condition: (obj.condition as string | undefined) ?? (obj.description as string | undefined) ?? null,
+            rawEvidence: block.rawText.slice(0, 500),
+          },
+        });
+      }
     }
   }
 
@@ -494,6 +550,17 @@ async function processParseExcelJob(job: ParseExcelJob): Promise<void> {
   await workerPrisma.importJob.update({
     where: { id: jobId },
     data: { status: "completed", completedAt: new Date() },
+  });
+
+  // Auto-publish all draft RuleVersions and QuoteVersions for this org
+  // (makes quotes available for the calculation engine immediately)
+  await workerPrisma.ruleVersion.updateMany({
+    where: { organizationId, status: "draft" },
+    data: { status: "published" },
+  });
+  await workerPrisma.quoteVersion.updateMany({
+    where: { organizationId, status: "draft" },
+    data: { status: "published" },
   });
 
   console.log(`[parse-excel] Job ${jobId} completed successfully`);
